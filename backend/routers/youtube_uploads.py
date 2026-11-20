@@ -38,25 +38,57 @@ class YouTubeUploadRequest(BaseModel):
     privacy_status: Literal["private", "unlisted", "public"] = "private"
 
 
+def _youtube_settings() -> dict[str, str]:
+    """Read OAuth settings from the process environment, with local .env fallback.
+
+    The backend normally loads backend/.env in backend.config. Reading the file
+    here as a fallback also covers launcher/reloader processes that inherit empty
+    environment variables, without logging or exposing the secret values.
+    """
+    settings = {
+        "YOUTUBE_CLIENT_ID": os.environ.get("YOUTUBE_CLIENT_ID", "").strip(),
+        "YOUTUBE_CLIENT_SECRET": os.environ.get("YOUTUBE_CLIENT_SECRET", "").strip(),
+        "YOUTUBE_REDIRECT_URI": os.environ.get("YOUTUBE_REDIRECT_URI", "").strip(),
+    }
+
+    try:
+        from dotenv import dotenv_values
+
+        for env_path in (ROOT_DIR / "backend" / ".env", ROOT_DIR / ".env"):
+            if settings["YOUTUBE_CLIENT_ID"] and settings["YOUTUBE_CLIENT_SECRET"] and settings["YOUTUBE_REDIRECT_URI"]:
+                break
+            file_values = dotenv_values(env_path)
+            for key in settings:
+                if not settings[key]:
+                    settings[key] = str(file_values.get(key) or "").strip()
+    except Exception as exc:
+        logger.warning("Could not read local YouTube OAuth environment files: %s", exc)
+
+    if not settings["YOUTUBE_REDIRECT_URI"]:
+        settings["YOUTUBE_REDIRECT_URI"] = "http://localhost:8000/api/youtube/callback"
+
+    return settings
+
+
 def _oauth_configured() -> bool:
-    return bool(
-        os.environ.get("YOUTUBE_CLIENT_ID", "").strip()
-        and os.environ.get("YOUTUBE_CLIENT_SECRET", "").strip()
-    )
+    settings = _youtube_settings()
+    return bool(settings["YOUTUBE_CLIENT_ID"] and settings["YOUTUBE_CLIENT_SECRET"])
 
 
 def _redirect_uri() -> str:
-    return os.environ.get(
-        "YOUTUBE_REDIRECT_URI",
-        "http://localhost:8000/api/youtube/callback",
-    ).strip()
+    return _youtube_settings()["YOUTUBE_REDIRECT_URI"]
 
 
 def _client_config() -> dict:
+    settings = _youtube_settings()
+    client_id = settings["YOUTUBE_CLIENT_ID"]
+    client_secret = settings["YOUTUBE_CLIENT_SECRET"]
+    if not client_id or not client_secret:
+        raise RuntimeError("YouTube OAuth client credentials are missing.")
     return {
         "web": {
-            "client_id": os.environ["YOUTUBE_CLIENT_ID"].strip(),
-            "client_secret": os.environ["YOUTUBE_CLIENT_SECRET"].strip(),
+            "client_id": client_id,
+            "client_secret": client_secret,
             "auth_uri": "https://accounts.google.com/o/oauth2/auth",
             "token_uri": "https://oauth2.googleapis.com/token",
             "redirect_uris": [_redirect_uri()],
