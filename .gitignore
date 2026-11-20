@@ -46,6 +46,7 @@ ENV/
 cookies.txt
 *cookies*.txt
 backend/cookies.txt
+backend/youtube_auth/
 *.cookies
 
 # Temp downloads and exports
