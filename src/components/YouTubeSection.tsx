@@ -28,6 +28,8 @@ export const YouTubeSection: React.FC<YouTubeSectionProps> = ({ batchProgress })
       const data = await response.json();
       if (!response.ok) throw new Error(data?.detail || 'Could not check YouTube connection.');
       setConnection(data);
+      // Stop background status polling as soon as OAuth has completed.
+      if (data.connected) setConnecting(false);
     } catch (err: any) {
       setError(err?.message || 'Could not check YouTube connection.');
     } finally {
