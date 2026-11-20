@@ -119,7 +119,7 @@ export const YouTubeSection: React.FC<YouTubeSectionProps> = ({ batchProgress })
             <button type="button" onClick={disconnect} style={{ border: '1px solid #475569', background: 'transparent', color: '#cbd5e1', padding: '8px 12px', borderRadius: 8, cursor: 'pointer' }}>Disconnect</button>
           </>
         ) : (
-          <button type="button" onClick={connect} disabled={connecting || !connection?.configured} style={{ border: 0, background: '#dc2626', color: 'white', padding: '10px 15px', borderRadius: 8, fontWeight: 750, cursor: 'pointer', opacity: connecting || !connection?.configured ? .6 : 1 }}>
+          <button type="button" onClick={connect} disabled={connecting} style={{ border: 0, background: '#dc2626', color: 'white', padding: '10px 15px', borderRadius: 8, fontWeight: 750, cursor: connecting ? 'wait' : 'pointer', opacity: connecting ? .6 : 1 }}>
             {connecting ? <><LoaderCircle size={14} className="youtube-upload-spin" /> Connecting…</> : 'Connect YouTube'}
           </button>
         )}
