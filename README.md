@@ -119,6 +119,28 @@ Cheat Clip PRO uses Google's AI to find the best viral moments for free:
 
 ---
 
+## ▶️ YouTube Upload Setup
+
+The dedicated **YOUTUBE** workflow tab can publish completed Auto Clipper videos to your channel.
+
+1. Enable **YouTube Data API v3** in a Google Cloud project.
+2. Create an **OAuth 2.0 Client ID** for a Web application.
+3. Add `http://localhost:8000/api/youtube/callback` as an Authorized redirect URI.
+4. Copy `backend/.env.template` to `backend/.env` and fill in:
+   ```env
+   YOUTUBE_CLIENT_ID=your_client_id
+   YOUTUBE_CLIENT_SECRET=your_client_secret
+   YOUTUBE_REDIRECT_URI=http://localhost:8000/api/youtube/callback
+   ```
+5. Add your Google account as a test user on the OAuth consent screen while the app is in Testing mode.
+6. Install backend dependencies with `pip install -r backend/requirements.txt`, restart the app, open **YOUTUBE**, and connect your channel.
+
+Uploads default to **Private**. Review the title, description, tags, and privacy setting before starting an upload. OAuth tokens are stored locally under `backend/youtube_auth/` and are excluded from Git.
+
+For Docker deployments, provide the three `YOUTUBE_*` environment variables to Compose. The `youtube_auth` volume preserves the connection token across container restarts.
+
+---
+
 ## 🎯 How to Use
 
 1. **Paste a YouTube URL** — Enter any podcast, stream, or video link.
