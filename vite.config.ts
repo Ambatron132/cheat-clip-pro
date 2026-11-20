@@ -5,6 +5,10 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
+    // Keep one predictable dev URL; don't silently move to 5174/5175/5176
+    // when an older Vite process is still occupying the default port.
+    port: 5173,
+    strictPort: true,
     watch: {
       ignored: ['**/dist_app/**', '**/dist_installer/**', '**/build/**', '**/venv/**']
     },
