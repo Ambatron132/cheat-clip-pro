@@ -9,6 +9,8 @@ aiofiles>=23.2.0
 # HTTP & API Clients
 requests>=2.31.0
 httpx>=0.25.0
+google-api-python-client>=2.0.0
+google-auth-oauthlib>=1.2.0
 
 # Gemini AI (Google GenAI SDK)
 google-genai>=2.0.0
