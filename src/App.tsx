@@ -11,6 +11,7 @@ import { isMobileDevice, requestWakeLock, releaseWakeLock } from './utils/device
 import { LayoutMetricsSync } from './utils/layoutMetricsSync';
 import { useLanguage } from './locales';
 import { HackerApiKeyInput } from './components/HackerApiKeyInput';
+import { YouTubeSection } from './components/YouTubeSection';
 
 // Lazy-loaded modal and heavy studio components to minimize initial bundle size and speed up page load
 const ClipStudioSection = lazy(() =>
@@ -55,7 +56,8 @@ import {
   FileVideo,
   Film,
   Scissors,
-  Sparkles
+  Sparkles,
+  Youtube
 } from 'lucide-react';
 import type { AnalyzeResponse, ViralClip, RenderSettings, BatchRenderProgress } from './types';
 
@@ -180,7 +182,7 @@ export default function App() {
     if (saved === 'id' || saved === 'en') return saved;
     return 'en';
   });
-  const [workflowTab, setWorkflowTab] = useState<'source' | 'clips' | 'clipper'>('source');
+  const [workflowTab, setWorkflowTab] = useState<'source' | 'clips' | 'clipper' | 'youtube'>('source');
   const [showLanguageConfirmModal, setShowLanguageConfirmModal] = useState<boolean>(false);
   const [skipLanguageConfirm, setSkipLanguageConfirm] = useState<boolean>(false);
 
@@ -3178,6 +3180,18 @@ Transcript:
                 [{markedClipsList.length} READY]
               </span>
             )}
+          </button>
+
+          <button
+            type="button"
+            id="tab-step-youtube"
+            className={`workflow-tab-btn ${workflowTab === 'youtube' ? 'active' : ''}`}
+            onClick={() => setWorkflowTab('youtube')}
+            title="Connect YouTube and upload completed clips"
+            aria-label="YouTube Upload"
+          >
+            <Youtube size={15} className="workflow-step-icon" />
+            <span className="workflow-step-title">YOUTUBE</span>
           </button>
         </nav>
 
@@ -6393,6 +6407,10 @@ Transcript:
               />
             </Suspense>
           </div>
+        )}
+
+        {workflowTab === 'youtube' && (
+          <YouTubeSection batchProgress={batchProgress} />
         )}
 
         {/* Viewport and Hardware Metrics Sync Pipeline */}
