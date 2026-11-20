@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { CheckCircle2, ExternalLink, LoaderCircle, Play, Youtube } from 'lucide-react';
+import { CheckCircle2, ExternalLink, LoaderCircle, Play } from 'lucide-react';
 import type { BatchRenderProgress } from '../types';
 import { resilientFetch } from '../utils/api';
 import YouTubeUploadModal from './YouTubeUploadModal';
@@ -107,7 +107,7 @@ export const YouTubeSection: React.FC<YouTubeSectionProps> = ({ batchProgress })
     <section style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '8px 0 28px' }}>
       <div style={{ ...cardStyle, display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
         <div style={{ width: 48, height: 48, borderRadius: 12, display: 'grid', placeItems: 'center', background: 'rgba(239,68,68,.14)', color: '#f87171' }}>
-          <Youtube size={26} />
+          <Play size={26} />
         </div>
         <div style={{ flex: 1, minWidth: 180 }}>
           <h2 style={{ margin: 0, fontSize: 19 }}>YouTube Studio</h2>
