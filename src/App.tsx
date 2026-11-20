@@ -56,8 +56,7 @@ import {
   FileVideo,
   Film,
   Scissors,
-  Sparkles,
-  Youtube
+  Sparkles
 } from 'lucide-react';
 import type { AnalyzeResponse, ViralClip, RenderSettings, BatchRenderProgress } from './types';
 
@@ -3190,7 +3189,7 @@ Transcript:
             title="Connect YouTube and upload completed clips"
             aria-label="YouTube Upload"
           >
-            <Youtube size={15} className="workflow-step-icon" />
+            <Play size={15} className="workflow-step-icon" />
             <span className="workflow-step-title">YOUTUBE</span>
           </button>
         </nav>
