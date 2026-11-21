@@ -352,12 +352,8 @@ def _run_youtube_upload(upload_id: str, file_path: Path, payload: dict) -> None:
 @router.post("/api/youtube/prepare")
 async def prepare_youtube_upload(file: UploadFile = File(...)):
     """Stores a browser-rendered MP4 in the export directory for the uploader."""
-    if not _oauth_configured() or _load_credentials() is None:
-        raise HTTPException(
-            status_code=401,
-            detail="Connect your YouTube account before preparing a video.",
-        )
-
+    # Preparing a rendered file is provider-neutral. The selected uploader
+    # (API OAuth or Playwright) performs its own connection validation.
     original_name = Path(file.filename or "clip.mp4").name
     if Path(original_name).suffix.lower() != ".mp4":
         raise HTTPException(status_code=400, detail="Only MP4 videos can be uploaded.")

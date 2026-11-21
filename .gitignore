@@ -47,6 +47,7 @@ cookies.txt
 *cookies*.txt
 backend/cookies.txt
 backend/youtube_auth/
+backend/youtube_browser_profile/
 *.cookies
 
 # Temp downloads and exports

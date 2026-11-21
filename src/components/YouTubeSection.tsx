@@ -111,7 +111,7 @@ export const YouTubeSection: React.FC<YouTubeSectionProps> = ({ batchProgress })
         </div>
         <div style={{ flex: 1, minWidth: 180 }}>
           <h2 style={{ margin: 0, fontSize: 19 }}>YouTube Studio</h2>
-          <p style={{ margin: '5px 0 0', color: '#9ca3af', fontSize: 13 }}>Connect your channel, then publish videos rendered in Auto Clipper.</p>
+          <p style={{ margin: '5px 0 0', color: '#9ca3af', fontSize: 13 }}>Publish Auto Clipper videos using YouTube API or the Playwright browser uploader.</p>
         </div>
         {checking ? <span style={{ color: '#9ca3af', fontSize: 13 }}>Checking connection…</span> : connection?.connected ? (
           <>
@@ -127,7 +127,7 @@ export const YouTubeSection: React.FC<YouTubeSectionProps> = ({ batchProgress })
 
       {connection && !connection.configured && (
         <div role="alert" style={{ ...cardStyle, borderColor: 'rgba(245,158,11,.4)', color: '#fbbf24', fontSize: 13, lineHeight: 1.6 }}>
-          YouTube OAuth is not configured yet. Add YOUTUBE_CLIENT_ID and YOUTUBE_CLIENT_SECRET to backend/.env and enable YouTube Data API v3 in Google Cloud. Redirect URI: <code>{connection.redirect_uri || 'http://localhost:8000/api/youtube/callback'}</code>
+          YouTube API mode is not configured. This is optional if you use Browser Upload (Playwright). To enable API mode, add YOUTUBE_CLIENT_ID and YOUTUBE_CLIENT_SECRET to backend/.env and enable YouTube Data API v3 in Google Cloud. Redirect URI: <code>{connection.redirect_uri || 'http://localhost:8000/api/youtube/callback'}</code>
         </div>
       )}
       {error && <div role="alert" style={{ ...cardStyle, borderColor: 'rgba(248,113,113,.4)', color: '#fca5a5', fontSize: 13 }}>{error}</div>}
@@ -155,7 +155,7 @@ export const YouTubeSection: React.FC<YouTubeSectionProps> = ({ batchProgress })
                   <div style={{ fontWeight: 700, fontSize: 13 }}>{clip.title || 'Rendered clip'}</div>
                   <div style={{ color: '#9ca3af', fontSize: 11 }}>MP4 · Render complete</div>
                 </div>
-                <button type="button" disabled={!connection?.connected || preparing !== null} onClick={() => prepareUpload(clip)} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, border: 0, borderRadius: 8, background: '#dc2626', color: '#fff', padding: '8px 12px', fontWeight: 700, cursor: 'pointer', opacity: !connection?.connected || preparing !== null ? .45 : 1 }}>
+                <button type="button" disabled={preparing !== null} onClick={() => prepareUpload(clip)} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, border: 0, borderRadius: 8, background: '#dc2626', color: '#fff', padding: '8px 12px', fontWeight: 700, cursor: preparing !== null ? 'wait' : 'pointer', opacity: preparing !== null ? .45 : 1 }}>
                   {preparing === clip.clip_index ? <LoaderCircle size={14} className="youtube-upload-spin"/> : <ExternalLink size={14}/>}
                   Upload to YouTube
                 </button>
@@ -163,7 +163,7 @@ export const YouTubeSection: React.FC<YouTubeSectionProps> = ({ batchProgress })
             ))}
           </div>
         )}
-        {!connection?.connected && <p style={{ margin: '12px 0 0', color: '#fbbf24', fontSize: 12 }}>Connect your YouTube account before uploading.</p>}
+        <p style={{ margin: '12px 0 0', color: '#94a3b8', fontSize: 12 }}>Choose YouTube API or Browser Upload (Playwright) in the next window. Browser Upload does not require Google API credentials.</p>
       </div>
       {selected && <YouTubeUploadModal fileName={selected.fileName} initialTitle={selected.title} initialDescription={selected.description} onClose={() => setSelected(null)} />}
     </section>

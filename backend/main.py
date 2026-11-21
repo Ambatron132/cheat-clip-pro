@@ -17,6 +17,7 @@ from backend.routers import (
     render_router,
     system_router,
     youtube_uploads_router,
+    youtube_browser_router,
 )
 # Re-exports for backwards compatibility
 from backend.schemas.analyze import (
@@ -151,6 +152,7 @@ app.include_router(cookies_router)
 app.include_router(downloads_router)
 app.include_router(system_router)
 app.include_router(youtube_uploads_router)
+app.include_router(youtube_browser_router)
 
 # Mount built frontend in production container if dist/ exists
 from pathlib import Path
