@@ -20,16 +20,12 @@ services:
       - YOUTUBE_CLIENT_ID=${YOUTUBE_CLIENT_ID:-}
       - YOUTUBE_CLIENT_SECRET=${YOUTUBE_CLIENT_SECRET:-}
       - YOUTUBE_REDIRECT_URI=${YOUTUBE_REDIRECT_URI:-http://localhost:8000/api/youtube/callback}
-      - TIKTOK_CLIENT_KEY=${TIKTOK_CLIENT_KEY:-}
-      - TIKTOK_CLIENT_SECRET=${TIKTOK_CLIENT_SECRET:-}
-      - TIKTOK_REDIRECT_URI=${TIKTOK_REDIRECT_URI:-http://localhost:8000/api/tiktok/callback}
     volumes:
       - media_temp:/app/temp
       - media_uploads:/app/uploads
       - media_exports:/app/exports
       - custom_fonts:/app/fonts
       - youtube_auth:/app/backend/youtube_auth
-      - tiktok_auth:/app/backend/tiktok_auth
     deploy:
       resources:
         limits:
@@ -41,4 +37,3 @@ volumes:
   media_exports:
   custom_fonts:
   youtube_auth:
-  tiktok_auth:
