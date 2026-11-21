@@ -5012,7 +5012,7 @@ export const ClipStudioSection: React.FC<ClipStudioSectionProps> = ({
             {/* Hidden Audio element for background music preview */}
             <audio
               ref={bgmAudioRef}
-              src={bgmAudioUrl || null}
+              src={bgmAudioUrl || undefined}
               onEnded={() => setIsBgmPlaying(false)}
               onLoadedMetadata={handleBgmLoadedMetadata}
               style={{ display: 'none' }}
@@ -5021,7 +5021,7 @@ export const ClipStudioSection: React.FC<ClipStudioSectionProps> = ({
             {/* Hidden Audio element for hook sound effect preview */}
             <audio
               ref={hookSfxAudioRef}
-              src={hookSfxAudioUrl || null}
+              src={hookSfxAudioUrl || undefined}
               onEnded={() => setIsHookSfxPlaying(false)}
               style={{ display: 'none' }}
             />
