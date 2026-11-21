@@ -340,7 +340,20 @@ export default function App() {
     eventSource.onmessage = (event) => {
       try {
         const progressData: BatchRenderProgress = JSON.parse(event.data);
-        setBatchProgress(progressData);
+        setBatchProgress((current) => ({
+          ...progressData,
+          // Keep recommendation metadata that is only available in the frontend
+          // when server progress events refresh render status.
+          clips: progressData.clips.map((clip) => {
+            const existingClip = current?.clips.find(
+              (item) => item.clip_index === clip.clip_index
+            );
+            return {
+              ...clip,
+              description: clip.description || existingClip?.description || '',
+            };
+          }),
+        }));
         if (progressData.overall_status === 'completed' || progressData.overall_status === 'error' || progressData.overall_status === 'cancelled') {
           eventSource.close();
           if (batchEventSourceRef.current === eventSource) {
