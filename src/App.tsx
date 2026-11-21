@@ -185,6 +185,16 @@ export default function App() {
   const [showLanguageConfirmModal, setShowLanguageConfirmModal] = useState<boolean>(false);
   const [skipLanguageConfirm, setSkipLanguageConfirm] = useState<boolean>(false);
 
+  // Public build-time feature flag, not an authentication mechanism.
+  const isLocalhost = typeof window !== 'undefined' && (
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1' ||
+    window.location.hostname === '::1' ||
+    window.location.hostname.endsWith('.local')
+  );
+  const isAutoClipperEnabled = isLocalhost ||
+    String((import.meta.env as any)?.VITE_ENABLE_AUTO_CLIPPER || '').trim().toLowerCase() === 'true';
+
   const parseTimeToSeconds = (val: string): number | null => {
     const clean = val.trim();
     if (!clean) return null;
@@ -3226,11 +3236,11 @@ Transcript:
             <span className="workflow-step-num">03</span>
             <Scissors size={15} className="workflow-step-icon" />
             <span className="workflow-step-title">AUTO CLIPPER</span>
-            {markedClipsList.length > 0 && (
-              <span className="workflow-tab-count">
-                [{markedClipsList.length} READY]
-              </span>
-            )}
+            {!isAutoClipperEnabled ? (
+              <span className="workflow-tab-count" title="Enable VITE_ENABLE_AUTO_CLIPPER=true in the deployment build.">[OPTIMASI]</span>
+            ) : markedClipsList.length > 0 ? (
+              <span className="workflow-tab-count">[{markedClipsList.length} READY]</span>
+            ) : null}
           </button>
 
           <button
@@ -6422,9 +6432,18 @@ Transcript:
           color: var(--primary) !important;
         }
       `}</style>
-        {/* Embedded Clip Studio Section with side inline batch progress */}
+        {/* Embedded Clip Studio Section with deployment feature gate */}
         {result && (
           <div style={{ display: workflowTab === 'clipper' ? 'block' : 'none' }}>
+            {!isAutoClipperEnabled ? (
+              <div className="glass-panel" role="status" style={{ padding: '2rem', textAlign: 'center', maxWidth: '680px', margin: '2rem auto' }}>
+                <h3>Auto Clipper is temporarily disabled on this deployment</h3>
+                <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                  Set <code>VITE_ENABLE_AUTO_CLIPPER=true</code> in the frontend build environment and rebuild to enable it. This flag controls visibility only; it is not authentication.
+                </p>
+                <button type="button" className="glowing-btn" onClick={() => setWorkflowTab('clips')}>Back to Recommended Clips</button>
+              </div>
+            ) : (
             <Suspense fallback={
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '360px', color: '#888' }}>
                 <span className="pulsing-text">Loading Studio Engine...</span>
@@ -6457,6 +6476,7 @@ Transcript:
                 onBackToClips={() => setWorkflowTab('clips')}
               />
             </Suspense>
+            )}
           </div>
         )}
 
