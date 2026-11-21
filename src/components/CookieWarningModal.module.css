@@ -179,3 +179,16 @@
   background: rgba(245, 158, 11, 0.22);
   box-shadow: 0 0 12px var(--status-warning-glow);
 }
+
+/* UX polish */
+.card { border-radius: 18px; border-color: rgba(246,189,96,.45); box-shadow: 0 24px 64px rgba(0,0,0,.45); padding: clamp(1.2rem, 4vw, 2rem); }
+.title { font-family: var(--font-sans); letter-spacing: -.02em; }
+.checkboxLabel, .setupBtn { font-family: var(--font-sans); }
+.compareBox { border-radius: 12px; padding: 1rem; }
+.setupBtn, .setupBtn:hover { border-radius: 10px; box-shadow: none; }
+@media (max-width: 600px) {
+  .overlay { padding: .65rem; }
+  .card { border-radius: 14px; }
+  .title { font-size: 1.1rem; flex-wrap: wrap; justify-content: center; }
+  .desc { font-size: .83rem; }
+}
