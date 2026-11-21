@@ -6,6 +6,7 @@ import { resilientFetch } from '../utils/api';
 interface YouTubeUploadModalProps {
   fileName: string;
   initialTitle: string;
+  initialDescription?: string;
   onClose: () => void;
 }
 
@@ -27,6 +28,7 @@ interface UploadJob {
 const YouTubeUploadModal: React.FC<YouTubeUploadModalProps> = ({
   fileName,
   initialTitle,
+  initialDescription = '',
   onClose,
 }) => {
   const { language } = useLanguage();
@@ -96,7 +98,7 @@ const YouTubeUploadModal: React.FC<YouTubeUploadModalProps> = ({
   const [connection, setConnection] = useState<ConnectionStatus | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [title, setTitle] = useState(initialTitle.slice(0, 100));
-  const [description, setDescription] = useState('');
+  const [description, setDescription] = useState(initialDescription);
   const [tags, setTags] = useState('');
   const [privacy, setPrivacy] = useState<'private' | 'unlisted' | 'public'>('private');
   const [isSubmitting, setIsSubmitting] = useState(false);
