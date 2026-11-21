@@ -139,8 +139,28 @@ Uploads default to **Private**. Review the title, description, tags, and privacy
 
 For Docker deployments, provide the three `YOUTUBE_*` environment variables to Compose. The `youtube_auth` volume preserves the connection token across container restarts.
 
----
 
+## 🎵 TikTok Upload Setup
+
+The **TIKTOK** workflow tab sends completed Auto Clipper MP4s to TikTok as drafts. TikTok then sends an inbox notification; open it in the TikTok app to add the final caption and publish.
+
+1. Create an app in [TikTok for Developers](https://developers.tiktok.com/).
+2. Register it as a **Desktop** app, add **Login Kit** and **Content Posting API**, and request approval for the `video.upload` scope.
+3. Register this redirect URI in the app:
+   `http://localhost:8000/api/tiktok/callback`
+4. Add the TikTok credentials to `backend/.env`:
+   ```env
+   TIKTOK_CLIENT_KEY=your_client_key
+   TIKTOK_CLIENT_SECRET=your_client_secret
+   TIKTOK_REDIRECT_URI=http://localhost:8000/api/tiktok/callback
+   ```
+5. Restart Cheat Clip PRO, open **TIKTOK**, and connect your TikTok account.
+
+The local desktop authorization uses TikTok OAuth with PKCE. TikTok access and refresh tokens are stored under `backend/tiktok_auth/` and excluded from Git. Videos are transferred using TikTok's Content Posting API (up to 4 GB). This integration uploads drafts to the creator's inbox; it does not publish automatically from the app.
+
+For Docker deployments, provide the `TIKTOK_*` environment variables to Compose. The `tiktok_auth` volume preserves the account connection across container restarts.
+
+---
 ## 🎯 How to Use
 
 1. **Paste a YouTube URL** — Enter any podcast, stream, or video link.
