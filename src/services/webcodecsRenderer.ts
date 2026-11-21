@@ -27,6 +27,16 @@ export interface WebCodecsRenderOptions {
   subtitleOffsetSeconds?: number;
   subtitlePositionMode?: SubtitlePositionMode;
   subtitleCenterYPercent?: number;
+  streamerPreset?: 'none' | 'split_top_cam' | 'pip_corner';
+  facecamPosition?: string;
+  watermarkEnabled?: boolean;
+  watermarkType?: 'image' | 'text';
+  watermarkUrl?: string;
+  watermarkText?: string;
+  watermarkSize?: number;
+  watermarkOpacity?: number;
+  watermarkX?: number;
+  watermarkY?: number;
   // General
   fileName?: string;
   onProgress?: (percent: number, stage: string) => void;
@@ -541,6 +551,16 @@ export async function renderClipWebCodecs(options: WebCodecsRenderOptions): Prom
     subtitleOffsetSeconds = 0,
     subtitlePositionMode = 'bottom',
     subtitleCenterYPercent = 50,
+    streamerPreset = 'none',
+    facecamPosition = 'auto',
+    watermarkEnabled = false,
+    watermarkType = 'image',
+    watermarkUrl,
+    watermarkText,
+    watermarkSize = 20,
+    watermarkOpacity = 80,
+    watermarkX = 88,
+    watermarkY = 8,
     onProgress
   } = options;
 
@@ -569,6 +589,21 @@ export async function renderClipWebCodecs(options: WebCodecsRenderOptions): Prom
     video.onloadedmetadata = () => resolve();
     video.onerror = () => reject(new Error('Failed to load video element for WebCodecs processing'));
   });
+
+  let loadedWatermarkImg: HTMLImageElement | null = null;
+  if (watermarkEnabled && watermarkType === 'image' && watermarkUrl) {
+    try {
+      loadedWatermarkImg = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error('Failed to load watermark image'));
+        img.src = watermarkUrl;
+      });
+    } catch (wmErr) {
+      console.warn('Could not load watermark image for WebCodecs render:', wmErr);
+    }
+  }
 
   const duration = (endTime && endTime > startTime) ? (endTime - startTime) : (video.duration - startTime);
   const totalDuration = Math.max(1, duration);
@@ -817,8 +852,27 @@ export async function renderClipWebCodecs(options: WebCodecsRenderOptions): Prom
       ctx.restore();
     }
 
-    // Composite Foreground Video according to Aspect Ratio (100% parity with server NVENC engine)
-    if (isLandscape) {
+    // Composite Foreground Video according to Streamer Preset & Aspect Ratio (100% parity with server NVENC engine)
+    if (!isLandscape && streamerPreset === 'split_top_cam') {
+      const pos = (facecamPosition || 'auto').toLowerCase();
+      let fcx = 0.84;
+      let fcy = 0.78;
+      if (pos === 'bottom_left') { fcx = 0.16; fcy = 0.78; }
+      else if (pos === 'top_left') { fcx = 0.16; fcy = 0.22; }
+      else if (pos === 'top_right') { fcx = 0.84; fcy = 0.22; }
+      else if (pos === 'center') { fcx = 0.50; fcy = 0.50; }
+      else if (pos === 'bottom_right') { fcx = 0.84; fcy = 0.78; }
+      const camH = Math.min(video.videoHeight, Math.max(260, video.videoHeight * 0.40));
+      const camW = Math.min(video.videoWidth, camH * (4 / 3));
+      const camX = Math.max(0, Math.min(video.videoWidth - camW, video.videoWidth * fcx - camW / 2));
+      const camY = Math.max(0, Math.min(video.videoHeight - camH, video.videoHeight * fcy - camH / 2));
+      ctx.drawImage(video, camX, camY, camW, camH, 0, 0, 1080, 810);
+      const gameH = video.videoHeight;
+      const gameW = Math.min(video.videoWidth, gameH * (1080 / 1110));
+      const gameX = Math.max(0, (video.videoWidth - gameW) / 2);
+      const gameY = Math.max(0, (video.videoHeight - gameH) / 2);
+      ctx.drawImage(video, gameX, gameY, gameW, gameH, 0, 810, 1080, 1110);
+    } else if (isLandscape) {
       // 16:9 Landscape: fit inside 1920x1080
       const scaleFg = Math.min(targetWidth / video.videoWidth, targetHeight / video.videoHeight);
       const fgW = video.videoWidth * scaleFg;
@@ -904,6 +958,28 @@ export async function renderClipWebCodecs(options: WebCodecsRenderOptions): Prom
         subtitlePositionMode,
         subtitleCenterYPercent
       );
+    }
+
+    if (watermarkEnabled && loadedWatermarkImg) {
+      const opacity = Math.max(0.05, Math.min(1, (watermarkOpacity ?? 80) / 100));
+      const width = Math.max(32, targetWidth * (Math.max(5, Math.min(100, watermarkSize ?? 20)) / 100));
+      const height = width * (loadedWatermarkImg.height / loadedWatermarkImg.width);
+      ctx.save(); ctx.globalAlpha = opacity;
+      ctx.drawImage(loadedWatermarkImg, targetWidth * ((watermarkX ?? 88) / 100) - width / 2, targetHeight * ((watermarkY ?? 8) / 100) - height / 2, width, height);
+      ctx.restore();
+    } else if (watermarkEnabled && watermarkText?.trim()) {
+      const opacity = Math.max(0.05, Math.min(1, (watermarkOpacity ?? 80) / 100));
+      const fontSize = Math.max(14, Math.round(36 * (Math.max(5, Math.min(100, watermarkSize ?? 20)) / 20)));
+      const x = targetWidth * ((watermarkX ?? 88) / 100);
+      const y = targetHeight * ((watermarkY ?? 8) / 100);
+      ctx.save(); ctx.globalAlpha = opacity; ctx.font = `bold ${fontSize}px 'Outfit', sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const metrics = ctx.measureText(watermarkText); const padX = 14; const padY = 8;
+      const w = metrics.width + padX * 2; const h = fontSize + padY * 2;
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+      if (typeof (ctx as any).roundRect === 'function') { ctx.beginPath(); (ctx as any).roundRect(x - w / 2, y - h / 2, w, h, 8); ctx.fill(); }
+      else ctx.fillRect(x - w / 2, y - h / 2, w, h);
+      ctx.fillStyle = '#fff'; ctx.fillText(watermarkText, x, y); ctx.restore();
     }
 
     // Create VideoFrame from Canvas and Encode
