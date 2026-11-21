@@ -47,7 +47,6 @@ cookies.txt
 *cookies*.txt
 backend/cookies.txt
 backend/youtube_auth/
-backend/tiktok_auth/
 *.cookies
 
 # Temp downloads and exports
