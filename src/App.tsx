@@ -480,7 +480,13 @@ export default function App() {
               clip_index: i,
               title: fullTitle,
               base_title: base,
-              description: c.caption_suggestion || '',
+              description: (() => {
+                const caption = c.caption_suggestion || '';
+                const lowercaseHashtags = (c.hashtag_suggestion || '').toLowerCase();
+                if (!lowercaseHashtags) return caption;
+                if (caption.toLowerCase().includes(lowercaseHashtags)) return caption;
+                return caption + ' ' + lowercaseHashtags;
+              })(),
               status: i === 0 ? 'rendering' : 'pending',
               progress_percent: 0,
             };
@@ -824,7 +830,13 @@ export default function App() {
           return {
             clip_index: i,
             title: fullTitle,
-            description: c.caption_suggestion || '',
+            description: (() => {
+                const caption = c.caption_suggestion || '';
+                const lowercaseHashtags = (c.hashtag_suggestion || '').toLowerCase();
+                if (!lowercaseHashtags) return caption;
+                if (caption.toLowerCase().includes(lowercaseHashtags)) return caption;
+                return caption + ' ' + lowercaseHashtags;
+              })(),
             status: 'pending',
             progress_percent: 0,
           };
