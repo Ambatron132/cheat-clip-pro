@@ -130,3 +130,18 @@
 .isActive {
   background: rgba(255, 0, 255, 0.15);
 }
+
+/* UX polish */
+.container { border-radius: 10px; border-color: var(--border-color); box-shadow: none; overflow: hidden; }
+.prefix { background: rgba(167,139,250,.09); border-right-color: var(--border-color); font-family: var(--font-sans); }
+.input { font-family: var(--font-mono); letter-spacing: .035em; }
+.mask { text-shadow: none; }
+.toggleBtn { border-radius: 8px; border-color: var(--border-color); font-family: var(--font-sans); }
+.toggleBtn:hover { background: var(--primary); color: #101322; }
+.clearBtn { font-family: var(--font-sans); }
+@media (max-width: 480px) {
+  .container { flex-wrap: wrap; }
+  .prefix { padding: 0 .55rem; }
+  .input { min-width: 0; }
+  .actions { padding: .25rem; }
+}
