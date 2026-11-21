@@ -368,3 +368,22 @@
 .closeFooterBtn:hover {
   border-color: var(--text-primary);
 }
+
+/* UX polish */
+.card { border-radius: 18px; border-color: var(--border-color); box-shadow: 0 24px 64px rgba(0,0,0,.42); }
+.header, .footer { padding: 1rem clamp(1rem, 3vw, 1.5rem); }
+.title, .progressTitle { font-family: var(--font-sans); letter-spacing: -.02em; }
+.subtitle, .versionLabel, .commitDate, .checkBtn, .restartBtn, .closeFooterBtn { font-family: var(--font-sans); }
+.closeBtn, .checkBtn, .btnPrimary, .restartBtn, .closeFooterBtn { border-radius: 9px; box-shadow: none; }
+.closeBtn { width: 38px; height: 38px; }
+.progressContainer, .versionCard, .checkingCard, .serverDeployCard, .availableCard, .changelogBox, .uptodateCard, .errorBanner { border-radius: 12px; }
+.commitBadge, .branchBadge, .reconnectBadge { border-radius: 999px; }
+.btnPrimary:hover, .checkBtn:hover:not(:disabled), .restartBtn:hover, .closeFooterBtn:hover { box-shadow: none; }
+@media (max-width: 600px) {
+  .overlay { padding: .6rem; }
+  .card { max-height: calc(100dvh - 1.2rem); border-radius: 14px; }
+  .header, .body, .footer { padding: 1rem; }
+  .versionTop, .uptodateCard { align-items: flex-start; flex-direction: column; gap: .6rem; }
+  .footer { flex-wrap: wrap; gap: .6rem; }
+  .footer > * { flex: 1 1 100%; justify-content: center; }
+}
