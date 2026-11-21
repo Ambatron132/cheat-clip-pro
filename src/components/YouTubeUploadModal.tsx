@@ -16,6 +16,14 @@ interface ConnectionStatus {
   redirect_uri?: string;
 }
 
+interface BrowserConnectionStatus {
+  available: boolean;
+  browser_open: boolean;
+  connected: boolean;
+  busy: boolean;
+  message?: string;
+}
+
 interface UploadJob {
   upload_id: string;
   status: 'queued' | 'uploading' | 'completed' | 'failed';
@@ -36,7 +44,7 @@ const YouTubeUploadModal: React.FC<YouTubeUploadModalProps> = ({
   const copy = isId
     ? {
         heading: 'Unggah ke YouTube',
-        intro: 'Video hasil render akan diunggah langsung dari server Cheat Clip Pro.',
+        intro: 'Pilih uploader API yang sudah ada atau otomatisasi YouTube Studio dengan Playwright.',
         channel: 'Akun YouTube',
         checking: 'Memeriksa koneksi...',
         connected: 'Akun YouTube terhubung',
@@ -63,10 +71,13 @@ const YouTubeUploadModal: React.FC<YouTubeUploadModalProps> = ({
         publicWarning: 'Video publik dapat langsung dilihat siapa saja.',
         privateNote: 'Disetel ke Pribadi secara default agar aman. Anda dapat mengubahnya sebelum mengunggah.',
         defaultError: 'Terjadi kesalahan. Silakan coba lagi.',
+        method: 'Metode unggah', apiMethod: 'YouTube API', browserMethod: 'Browser Upload (Playwright)',
+        browserIntro: 'Gunakan browser khusus yang menyimpan sesi login YouTube.', browserOpen: 'Buka browser & login', browserOpening: 'Membuka browser...', browserConnected: 'Browser terhubung ke YouTube Studio', browserDisconnected: 'Browser belum login',
+        madeForKids: 'Apakah video ini dibuat untuk anak-anak?', yesKids: 'Ya, dibuat untuk anak-anak', noKids: 'Tidak, bukan dibuat untuk anak-anak',
       }
     : {
         heading: 'Upload to YouTube',
-        intro: 'The finished render will be uploaded directly from the Cheat Clip Pro backend.',
+        intro: 'Choose the existing API uploader or automate YouTube Studio with Playwright.',
         channel: 'YouTube account',
         checking: 'Checking connection...',
         connected: 'YouTube account connected',
@@ -93,9 +104,16 @@ const YouTubeUploadModal: React.FC<YouTubeUploadModalProps> = ({
         publicWarning: 'Public videos can be viewed by anyone as soon as YouTube makes them available.',
         privateNote: 'Private is selected by default. Change this before uploading if needed.',
         defaultError: 'Something went wrong. Please try again.',
+        method: 'Upload method', apiMethod: 'YouTube API', browserMethod: 'Browser Upload (Playwright)',
+        browserIntro: 'Use a dedicated browser profile that keeps your YouTube sign-in session.', browserOpen: 'Open browser & sign in', browserOpening: 'Opening browser...', browserConnected: 'Browser connected to YouTube Studio', browserDisconnected: 'Browser is not signed in',
+        madeForKids: 'Is this video made for kids?', yesKids: 'Yes, it is made for kids', noKids: 'No, it is not made for kids',
       };
 
   const [connection, setConnection] = useState<ConnectionStatus | null>(null);
+  const [browser, setBrowser] = useState<BrowserConnectionStatus | null>(null);
+  const [provider, setProvider] = useState<'api' | 'browser'>('api');
+  const [madeForKids, setMadeForKids] = useState<'yes' | 'no'>('no');
+  const [isOpeningBrowser, setIsOpeningBrowser] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [title, setTitle] = useState(initialTitle.slice(0, 100));
   const [description, setDescription] = useState(initialDescription);
@@ -116,6 +134,14 @@ const YouTubeUploadModal: React.FC<YouTubeUploadModalProps> = ({
     return data;
   }, [copy.defaultError]);
 
+  const loadBrowserStatus = useCallback(async () => {
+    const response = await resilientFetch('/api/youtube/browser/status', { maxRetries: 0, silent: true });
+    if (!response.ok) throw new Error(copy.defaultError);
+    const data = await response.json() as BrowserConnectionStatus;
+    setBrowser(data);
+    return data;
+  }, [copy.defaultError]);
+
   useEffect(() => {
     let active = true;
     resilientFetch('/api/youtube/status', { maxRetries: 1, silent: true })
@@ -125,8 +151,23 @@ const YouTubeUploadModal: React.FC<YouTubeUploadModalProps> = ({
       })
       .then((data) => { if (active) setConnection(data); })
       .catch((err) => { if (active) setError(err?.message || copy.defaultError); });
+    loadBrowserStatus().catch(() => undefined);
     return () => { active = false; };
-  }, [copy.defaultError]);
+  }, [copy.defaultError, loadBrowserStatus]);
+
+  useEffect(() => {
+    if (!isOpeningBrowser) return;
+    let active = true;
+    const pollBrowser = async () => {
+      try {
+        const data = await loadBrowserStatus();
+        if (active && data.connected) setIsOpeningBrowser(false);
+      } catch { /* Keep checking while the browser starts. */ }
+    };
+    const interval = window.setInterval(pollBrowser, 1500);
+    const timeout = window.setTimeout(() => { if (active) setIsOpeningBrowser(false); }, 180000);
+    return () => { active = false; window.clearInterval(interval); window.clearTimeout(timeout); };
+  }, [isOpeningBrowser, loadBrowserStatus]);
 
   useEffect(() => {
     if (!isConnecting) return;
@@ -158,7 +199,8 @@ const YouTubeUploadModal: React.FC<YouTubeUploadModalProps> = ({
     let active = true;
     const pollJob = async () => {
       try {
-        const response = await resilientFetch('/api/youtube/upload/' + job.upload_id, {
+        const statusPath = provider === 'browser' ? '/api/youtube/browser/upload/' : '/api/youtube/upload/';
+        const response = await resilientFetch(statusPath + job.upload_id, {
           maxRetries: 0,
           silent: true,
         });
@@ -175,7 +217,7 @@ const YouTubeUploadModal: React.FC<YouTubeUploadModalProps> = ({
       active = false;
       window.clearInterval(interval);
     };
-  }, [job?.upload_id, job?.status]);
+  }, [job?.upload_id, job?.status, provider]);
 
   const handleConnect = async () => {
     setError('');
@@ -200,6 +242,20 @@ const YouTubeUploadModal: React.FC<YouTubeUploadModalProps> = ({
     }
   };
 
+  const handleOpenBrowser = async () => {
+    setError('');
+    setIsOpeningBrowser(true);
+    try {
+      const response = await resilientFetch('/api/youtube/browser/connect', { method: 'POST', maxRetries: 0 });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.detail || copy.defaultError);
+      await loadBrowserStatus();
+    } catch (err: any) {
+      setIsOpeningBrowser(false);
+      setError(err?.message || copy.defaultError);
+    }
+  };
+
   const handleDisconnect = async () => {
     setError('');
     try {
@@ -215,13 +271,14 @@ const YouTubeUploadModal: React.FC<YouTubeUploadModalProps> = ({
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!connection?.connected || !title.trim() || isSubmitting) return;
+    if ((provider === 'api' && !connection?.connected) || (provider === 'browser' && !browser?.connected) || !title.trim() || isSubmitting) return;
 
     setError('');
     setIsSubmitting(true);
     setJob(null);
     try {
-      const response = await resilientFetch('/api/youtube/upload', {
+      const uploadPath = provider === 'browser' ? '/api/youtube/browser/upload' : '/api/youtube/upload';
+      const response = await resilientFetch(uploadPath, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -230,6 +287,7 @@ const YouTubeUploadModal: React.FC<YouTubeUploadModalProps> = ({
           description,
           tags: tags.split(',').map((tag) => tag.trim()).filter(Boolean),
           privacy_status: privacy,
+          ...(provider === 'browser' ? { made_for_kids: madeForKids === 'yes' } : {}),
         }),
         maxRetries: 0,
       });
@@ -313,6 +371,18 @@ const YouTubeUploadModal: React.FC<YouTubeUploadModalProps> = ({
           </button>
         </header>
 
+        <div style={{ marginBottom: 14 }}>
+          <label style={labelStyle}>{copy.method}</label>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            {(['api', 'browser'] as const).map((value) => (
+              <button key={value} type="button" onClick={() => { setProvider(value); setJob(null); setError(''); }}
+                style={{ minHeight: 42, borderRadius: 9, border: provider === value ? '1px solid #a78bfa' : '1px solid #343b4e', background: provider === value ? 'rgba(139,92,246,.16)' : '#111522', color: '#f8fafc', fontWeight: 750, cursor: 'pointer' }}>
+                {value === 'api' ? copy.apiMethod : copy.browserMethod}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div style={{ border: '1px solid #30384a', background: '#111522', borderRadius: 11, padding: 12, marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
             <div>
@@ -352,7 +422,23 @@ const YouTubeUploadModal: React.FC<YouTubeUploadModalProps> = ({
           ) : null}
         </div>
 
-        {connection?.connected && !job?.upload_id ? (
+        {provider === 'browser' ? (
+          <div style={{ border: '1px solid #30384a', background: '#111522', borderRadius: 11, padding: 12, marginBottom: 16 }}>
+            <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 5 }}>{copy.browserMethod}</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: browser?.connected ? '#86efac' : '#e5e7eb' }}>
+              {browser?.connected ? copy.browserConnected : browser?.message || copy.browserDisconnected}
+            </div>
+            <p style={{ margin: '6px 0 10px', color: '#94a3b8', fontSize: 11 }}>{copy.browserIntro}</p>
+            {!browser?.connected ? (
+              <button type="button" onClick={handleOpenBrowser} disabled={isOpeningBrowser || browser?.available === false}
+                style={{ width: '100%', minHeight: 40, border: 0, borderRadius: 9, background: '#2563eb', color: '#fff', fontWeight: 800, cursor: 'pointer', opacity: isOpeningBrowser ? .65 : 1 }}>
+                {isOpeningBrowser ? <><LoaderCircle size={15} className="youtube-upload-spin" /> {copy.browserOpening}</> : copy.browserOpen}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+
+        {((provider === 'api' && connection?.connected) || (provider === 'browser' && browser?.connected)) && !job?.upload_id ? (
           <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 13 }}>
             <div>
               <label htmlFor="youtube-upload-title" style={labelStyle}>{copy.title}</label>
@@ -367,6 +453,15 @@ const YouTubeUploadModal: React.FC<YouTubeUploadModalProps> = ({
               <label htmlFor="youtube-upload-tags" style={labelStyle}>{copy.tags}</label>
               <input id="youtube-upload-tags" value={tags} onChange={(event) => setTags(event.target.value)} placeholder="gaming, highlights, shorts" style={fieldStyle} />
             </div>
+            {provider === 'browser' ? (
+              <div>
+                <label htmlFor="youtube-made-for-kids" style={labelStyle}>{copy.madeForKids}</label>
+                <select id="youtube-made-for-kids" value={madeForKids} onChange={(event) => setMadeForKids(event.target.value as 'yes' | 'no')} style={fieldStyle}>
+                  <option value="no">{copy.noKids}</option>
+                  <option value="yes">{copy.yesKids}</option>
+                </select>
+              </div>
+            ) : null}
             <div>
               <label htmlFor="youtube-upload-privacy" style={labelStyle}>{copy.privacy}</label>
               <select id="youtube-upload-privacy" value={privacy} onChange={(event) => setPrivacy(event.target.value as 'private' | 'unlisted' | 'public')} style={fieldStyle}>
