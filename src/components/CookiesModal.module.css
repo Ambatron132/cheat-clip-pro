@@ -497,3 +497,18 @@
 .confirmPurgeBtn:hover:not(:disabled) {
   filter: brightness(1.15);
 }
+
+/* UX polish */
+.card { border-radius: 18px; border-color: var(--border-color); box-shadow: 0 24px 64px rgba(0,0,0,.45); }
+.header, .footer { padding-left: clamp(.9rem, 3vw, 1.4rem); padding-right: clamp(.9rem, 3vw, 1.4rem); }
+.title { font-family: var(--font-sans); letter-spacing: -.02em; }
+.statusPill, .closeBtn, .saveBtn, .actionBtn, .removeBtn { border-radius: 9px; box-shadow: none; }
+.statusBox, .cookieFormatBox, .instructionBox, .warningBox { border-radius: 11px; }
+.scrollable { scrollbar-gutter: stable; }
+.closeBtn { width: 38px; height: 38px; }
+@media (max-width: 600px) {
+  .card { width: calc(100% - 1rem); max-height: calc(100dvh - 1rem); border-radius: 14px; }
+  .header { gap: .6rem; }
+  .title { font-size: 1rem; }
+  .statusSection { padding-left: .85rem; padding-right: .85rem; }
+}
