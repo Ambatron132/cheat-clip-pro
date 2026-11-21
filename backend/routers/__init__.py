@@ -5,6 +5,7 @@ from backend.routers.media import router as media_router
 from backend.routers.render import router as render_router
 from backend.routers.system import router as system_router
 from backend.routers.youtube_uploads import router as youtube_uploads_router
+from backend.routers.tiktok_uploads import router as tiktok_uploads_router
 
 __all__ = [
     "analyze_router",
@@ -14,4 +15,5 @@ __all__ = [
     "render_router",
     "system_router",
     "youtube_uploads_router",
+    "tiktok_uploads_router",
 ]
