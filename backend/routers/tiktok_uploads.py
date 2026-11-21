@@ -1,6 +1,5 @@
 """TikTok OAuth and Content Posting API draft-upload endpoints."""
 
-import base64
 import hashlib
 import json
 import math
@@ -217,7 +216,7 @@ def tiktok_auth_url():
     settings = _tiktok_settings()
     state = secrets.token_urlsafe(32)
     verifier = secrets.token_urlsafe(64)
-    challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode("ascii")).digest()).decode("ascii").rstrip("=")
+    challenge = hashlib.sha256(verifier.encode("ascii")).hexdigest()
 
     now = time.time()
     for old_state, (_, created_at) in list(_OAUTH_FLOWS.items()):
