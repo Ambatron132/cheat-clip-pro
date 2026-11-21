@@ -155,7 +155,7 @@ export const YouTubeSection: React.FC<YouTubeSectionProps> = ({ batchProgress })
                   <div style={{ fontWeight: 700, fontSize: 13 }}>{clip.title || 'Rendered clip'}</div>
                   <div style={{ color: '#9ca3af', fontSize: 11 }}>MP4 · Render complete</div>
                 </div>
-                <button type="button" disabled={!connection?.connected || preparing !== null} onClick={() => prepareUpload(clip)} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, border: 0, borderRadius: 8, background: '#dc2626', color: '#fff', padding: '8px 12px', fontWeight: 700, cursor: 'pointer', opacity: !connection?.connected || preparing !== null ? .45 : 1 }}>
+                <button type="button" disabled={preparing !== null} onClick={() => prepareUpload(clip)} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, border: 0, borderRadius: 8, background: '#dc2626', color: '#fff', padding: '8px 12px', fontWeight: 700, cursor: preparing !== null ? 'wait' : 'pointer', opacity: preparing !== null ? .45 : 1 }}>
                   {preparing === clip.clip_index ? <LoaderCircle size={14} className="youtube-upload-spin"/> : <ExternalLink size={14}/>}
                   Upload to YouTube
                 </button>
@@ -163,7 +163,7 @@ export const YouTubeSection: React.FC<YouTubeSectionProps> = ({ batchProgress })
             ))}
           </div>
         )}
-        {!connection?.connected && <p style={{ margin: '12px 0 0', color: '#fbbf24', fontSize: 12 }}>Connect your YouTube account before uploading.</p>}
+        <p style={{ margin: '12px 0 0', color: '#94a3b8', fontSize: 12 }}>Choose YouTube API or Browser Upload (Playwright) in the next window. Browser Upload does not require Google API credentials.</p>
       </div>
       {selected && <YouTubeUploadModal fileName={selected.fileName} initialTitle={selected.title} initialDescription={selected.description} onClose={() => setSelected(null)} />}
     </section>
