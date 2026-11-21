@@ -107,3 +107,13 @@
   border: 1px dashed var(--secondary);
   background: rgba(255, 0, 255, 0.12);
 }
+
+/* UX polish */
+.canvasCard { border-radius: 12px; border-color: var(--border-color); background: rgba(13,21,38,.8); }
+.tooltip, .naBadge { border-radius: 8px; box-shadow: 0 8px 20px rgba(0,0,0,.24); }
+.tooltip { padding: .35rem .55rem; font-family: var(--font-sans); }
+.topRow, .footerRow { font-family: var(--font-sans); }
+@media (max-width: 520px) {
+  .topRow, .footerRow { gap: .5rem; flex-wrap: wrap; }
+  .legendGroup { gap: .5rem; flex-wrap: wrap; }
+}
