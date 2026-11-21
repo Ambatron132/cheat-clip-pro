@@ -480,7 +480,7 @@ export default function App() {
               clip_index: i,
               title: fullTitle,
               base_title: base,
-              description: c.caption_suggestion || '',
+              description: (c.caption_suggestion || '').replace(/(^|\\s)#[\\p{L}\\p{N}_]+/gu, '$1').replace(/[ \\t]+\\n/g, '\\n').replace(/\\n{3,}/g, '\\n\\n').trim(),
               status: i === 0 ? 'rendering' : 'pending',
               progress_percent: 0,
             };
@@ -824,7 +824,7 @@ export default function App() {
           return {
             clip_index: i,
             title: fullTitle,
-            description: c.caption_suggestion || '',
+            description: (c.caption_suggestion || '').replace(/(^|\\s)#[\\p{L}\\p{N}_]+/gu, '$1').replace(/[ \\t]+\\n/g, '\\n').replace(/\\n{3,}/g, '\\n\\n').trim(),
             status: 'pending',
             progress_percent: 0,
           };
