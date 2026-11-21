@@ -12,6 +12,7 @@ import { LayoutMetricsSync } from './utils/layoutMetricsSync';
 import { useLanguage } from './locales';
 import { HackerApiKeyInput } from './components/HackerApiKeyInput';
 import { YouTubeSection } from './components/YouTubeSection';
+import { TikTokSection } from './components/TikTokSection';
 
 // Lazy-loaded modal and heavy studio components to minimize initial bundle size and speed up page load
 const ClipStudioSection = lazy(() =>
@@ -181,7 +182,7 @@ export default function App() {
     if (saved === 'id' || saved === 'en') return saved;
     return 'en';
   });
-  const [workflowTab, setWorkflowTab] = useState<'source' | 'clips' | 'clipper' | 'youtube'>('source');
+  const [workflowTab, setWorkflowTab] = useState<'source' | 'clips' | 'clipper' | 'youtube' | 'tiktok'>('source');
   const [showLanguageConfirmModal, setShowLanguageConfirmModal] = useState<boolean>(false);
   const [skipLanguageConfirm, setSkipLanguageConfirm] = useState<boolean>(false);
 
@@ -3191,6 +3192,17 @@ Transcript:
           >
             <Play size={15} className="workflow-step-icon" />
             <span className="workflow-step-title">YOUTUBE</span>
+          </button>
+          <button
+            type="button"
+            id="tab-step-tiktok"
+            className={`workflow-tab-btn ${workflowTab === 'tiktok' ? 'active' : ''}`}
+            onClick={() => setWorkflowTab('tiktok')}
+            title="Connect TikTok and upload completed clips"
+            aria-label="TikTok Upload"
+          >
+            <Upload size={15} className="workflow-step-icon" />
+            <span className="workflow-step-title">TIKTOK</span>
           </button>
         </nav>
 
@@ -6410,6 +6422,10 @@ Transcript:
 
         {workflowTab === 'youtube' && (
           <YouTubeSection batchProgress={batchProgress} />
+        )}
+
+        {workflowTab === 'tiktok' && (
+          <TikTokSection batchProgress={batchProgress} />
         )}
 
         {/* Viewport and Hardware Metrics Sync Pipeline */}
