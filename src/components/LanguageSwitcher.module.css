@@ -47,3 +47,9 @@
   box-shadow: 0 0 10px var(--primary-glow);
   border-right-color: var(--primary);
 }
+
+/* UX polish */
+.switcher { height: 36px; padding: 3px; border-radius: 10px; background: var(--bg-surface); border-color: var(--border-color); }
+.btn { padding: 0 .7rem; border: 0; border-radius: 7px; font-family: var(--font-sans); font-size: .76rem; }
+.btn:hover:not(.active) { border-radius: 7px; }
+.active { background: rgba(167,139,250,.18); color: #ddd3ff; box-shadow: inset 0 0 0 1px rgba(167,139,250,.35); }
