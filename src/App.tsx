@@ -544,13 +544,28 @@ export default function App() {
 
             const downloadStartTime = Date.now();
             rawSourceUrl = await new Promise<string>((resolve, reject) => {
+              let consecutiveNetworkFailures = 0;
               const pollInterval = setInterval(async () => {
                 try {
                   const elapsedSec = Math.floor((Date.now() - downloadStartTime) / 1000);
-                  const statusRes = await fetch(`/api/download-raw-clip-status/${jobId}`);
+                  let statusRes: Response;
+                  try {
+                    statusRes = await fetch(`/api/download-raw-clip-status/${jobId}`);
+                    consecutiveNetworkFailures = 0;
+                  } catch {
+                    consecutiveNetworkFailures++;
+                    if (consecutiveNetworkFailures > 5) {
+                      clearInterval(pollInterval);
+                      reject(new Error('Network connection lost while fetching the source video. Please retry.'));
+                    }
+                    return;
+                  }
                   if (!statusRes.ok) {
-                    clearInterval(pollInterval);
-                    reject(new Error('Failed to retrieve raw stream status'));
+                    consecutiveNetworkFailures++;
+                    if (consecutiveNetworkFailures > 5) {
+                      clearInterval(pollInterval);
+                      reject(new Error('Could not check source download status. Please retry.'));
+                    }
                     return;
                   }
                   const statusData = await statusRes.json();
@@ -619,6 +634,16 @@ export default function App() {
                 subtitleOffsetSeconds: settings.subtitleOffsetSeconds,
                 subtitlePositionMode: settings.subtitlePositionMode,
                 subtitleCenterYPercent: settings.subtitleCenterYPercent,
+                streamerPreset: settings.streamerPreset,
+                facecamPosition: settings.facecamPosition || 'auto',
+                watermarkEnabled: settings.watermarkEnabled,
+                watermarkType: settings.watermarkType,
+                watermarkUrl: settings.watermarkUrl || settings.watermarkFilePath || undefined,
+                watermarkText: settings.watermarkText,
+                watermarkSize: settings.watermarkSize,
+                watermarkOpacity: settings.watermarkOpacity,
+                watermarkX: settings.watermarkX,
+                watermarkY: settings.watermarkY,
                 fileName: `${filename}.mp4`,
                 onProgress: (pct, stage) => {
                   setBatchProgress(prev => {
