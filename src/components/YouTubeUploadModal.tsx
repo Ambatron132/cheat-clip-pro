@@ -375,7 +375,7 @@ const YouTubeUploadModal: React.FC<YouTubeUploadModalProps> = ({
           <label style={labelStyle}>{copy.method}</label>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             {(['api', 'browser'] as const).map((value) => (
-              <button key={value} type="button" onClick={() => { setProvider(value); setJob(null); setError(''); }}
+              <button key={value} type="button" onClick={() => { setProvider(value); if (!uploading) setJob(null); setError(''); }} disabled={uploading}
                 style={{ minHeight: 42, borderRadius: 9, border: provider === value ? '1px solid #a78bfa' : '1px solid #343b4e', background: provider === value ? 'rgba(139,92,246,.16)' : '#111522', color: '#f8fafc', fontWeight: 750, cursor: 'pointer' }}>
                 {value === 'api' ? copy.apiMethod : copy.browserMethod}
               </button>
@@ -398,7 +398,7 @@ const YouTubeUploadModal: React.FC<YouTubeUploadModalProps> = ({
             ) : null}
           </div>
 
-          {connection && !connection.configured ? (
+          {provider === 'api' && connection && !connection.configured ? (
             <div style={{ marginTop: 12, fontSize: 12, color: '#fbbf24', lineHeight: 1.55 }}>
               <strong>{copy.setupTitle}</strong>
               <p style={{ margin: '6px 0' }}>{copy.setupText}</p>
