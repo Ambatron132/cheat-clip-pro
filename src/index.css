@@ -29,3 +29,6 @@
 
 /* Modals & Precision Tools */
 @import "./styles/trimmer-modal.css";
+
+/* Global usability and responsive polish — keep this last. */
+@import "./styles/ux-polish.css";
