@@ -136,7 +136,17 @@ def _run_studio_upload(page, upload_id: str, file_path: Path, payload: dict) -> 
         _click_text(page, [r"Show more|Tampilkan lebih banyak"], timeout=2500)
     except Exception:
         pass
-    tags = [str(tag).strip()[:100] for tag in payload.get("tags", []) if str(tag).strip()][:30]
+    tags = []
+    tag_characters = 0
+    for raw_tag in payload.get("tags", []):
+        tag = str(raw_tag).strip()[:100]
+        if not tag:
+            continue
+        extra = len(tag) + (1 if tags else 0)
+        if tag_characters + extra > 500:
+            break
+        tags.append(tag)
+        tag_characters += extra
     if tags:
         tag_input = None
         for selector in ['#tags-container input', 'input[aria-label*="tag" i]', 'input[placeholder*="tag" i]']:
