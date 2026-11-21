@@ -641,3 +641,101 @@ textarea:focus-visible {
     transition-duration: .01ms !important;
   }
 }
+
+/* Clip Studio workspace refinement */
+.clip-studio-page-section {
+  padding: clamp(1rem, 2.8vw, 2rem);
+  border-radius: var(--radius-lg) !important;
+  background: rgba(17, 24, 39, .94);
+  border-color: var(--border-color);
+  box-shadow: var(--surface-shadow);
+}
+.clip-studio-page-section::before {
+  height: 2px;
+  background: linear-gradient(90deg, var(--primary), rgba(103, 215, 232, .55), transparent);
+  box-shadow: none;
+}
+.studio-section-header {
+  gap: 1rem;
+  padding-bottom: 1.1rem;
+  margin-bottom: 1.25rem;
+  border-bottom-color: var(--border-color);
+}
+.studio-main-heading {
+  font-family: var(--font-sans) !important;
+  font-size: clamp(1.25rem, 2.5vw, 1.65rem);
+  letter-spacing: -.03em;
+  text-transform: none;
+}
+.studio-subtext {
+  max-width: 60ch;
+  line-height: 1.6;
+}
+.studio-icon-glow {
+  border-radius: 12px !important;
+  box-shadow: none;
+  background: rgba(167, 139, 250, .1);
+}
+.studio-card-group {
+  border-radius: 12px !important;
+  border-color: var(--border-color);
+  background: rgba(17, 24, 39, .72);
+  box-shadow: none;
+}
+.studio-card-group:hover {
+  border-color: rgba(167, 139, 250, .35);
+  box-shadow: none;
+}
+.group-header {
+  gap: .75rem;
+}
+.group-title {
+  font-family: var(--font-sans) !important;
+}
+.preview-clip-picker-bar {
+  border-radius: 10px !important;
+  background: rgba(23, 32, 51, .75);
+  border-color: var(--border-color);
+}
+.preview-clip-select {
+  color: var(--text-primary);
+}
+.studio-preview-pane {
+  min-width: 0;
+}
+.preview-sticky-wrap {
+  border-radius: 14px !important;
+}
+.preview-header-bar {
+  border-radius: 12px 12px 0 0 !important;
+}
+.position-sliders-card {
+  border-radius: 12px !important;
+}
+
+@media (max-width: 600px) {
+  .clip-studio-page-section {
+    padding: .85rem;
+  }
+  .studio-section-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .studio-header-left {
+    gap: .75rem;
+    align-items: flex-start;
+  }
+  .studio-title-badge-row {
+    flex-wrap: wrap;
+  }
+  .preview-clip-picker-bar {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+  .preview-clip-select {
+    max-width: 100%;
+    min-width: 0;
+  }
+}
+
