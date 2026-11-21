@@ -203,3 +203,14 @@ For Docker deployments, provide the three `YOUTUBE_*` environment variables to C
 Distributed under the **MIT License**. Free for personal and commercial use.
 
 Any copies, forks, or substantial portions of this software must retain the original copyright notice and permission notice found in the LICENSE file.
+
+
+## Auto Clipper deployment feature flag
+
+Auto Clipper is available automatically on localhost. In a deployed frontend build, enable it by setting the following public build-time variable:
+
+```env
+VITE_ENABLE_AUTO_CLIPPER=true
+```
+
+Leave it unset to show the maintenance notice. This flag controls UI visibility only; it is not authentication and must not be used to protect private data or API endpoints.
