@@ -394,7 +394,7 @@ def _run_tiktok_upload(upload_id: str, file_path: Path) -> None:
 
         # TikTok processes uploads asynchronously and then places the draft in the creator's inbox.
         for _ in range(30):
-            time.sleep(2)
+            time.sleep(3)
             status_response = requests.post(
                 f"{TIKTOK_API}/v2/post/publish/status/fetch/",
                 headers={
