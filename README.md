@@ -140,6 +140,30 @@ Uploads default to **Private**. Review the title, description, tags, and privacy
 For Docker deployments, provide the three `YOUTUBE_*` environment variables to Compose. The `youtube_auth` volume preserves the connection token across container restarts.
 
 
+### Browser Upload (Playwright) — no YouTube Data API required
+
+The YOUTUBE workflow also includes **Browser Upload (Playwright)**. It automates YouTube Studio in a dedicated local Chromium profile and can publish a video after filling in its details.
+
+1. Install the backend requirements:
+   ```bash
+   pip install -r backend/requirements.txt
+   ```
+2. Install the Playwright Chromium browser:
+   ```bash
+   python -m playwright install chromium
+   ```
+3. Start Cheat Clip PRO and open **YOUTUBE**.
+4. Select a completed render and choose **Browser Upload (Playwright)**.
+5. Click **Open browser & sign in**. Sign into the intended YouTube channel manually in the opened browser.
+6. Return to Cheat Clip PRO, enter the title, description, tags, privacy, and audience setting, then start the upload.
+
+The browser profile is stored locally in `backend/youtube_browser_profile/` and reused on later runs. It contains your signed-in browser session; do not share or commit this folder. The browser provider runs on the same computer as the backend and requires a visible desktop session. YouTube Studio can change its interface, so browser automation may need maintenance. If Google requests CAPTCHA or additional account verification, complete it manually in the browser.
+
+**Automatic publishing:** Public and Unlisted uploads use YouTube Studio's Publish action. Private uploads use Save. The default privacy remains Private. The audience setting is shown explicitly before upload; choose the accurate answer for each video.
+
+The existing **YouTube API** uploader remains available and is the default provider. It continues to use the existing OAuth connection and resumable upload implementation. Browser Upload is an independent alternative and does not require API credentials.
+
+
 ## 🎯 How to Use
 
 1. **Paste a YouTube URL** — Enter any podcast, stream, or video link.
