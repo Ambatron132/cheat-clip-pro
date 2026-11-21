@@ -305,3 +305,27 @@
   font-family: var(--font-mono);
   color: var(--text-muted);
 }
+
+/* UX polish */
+.card { border-radius: 18px; border-color: var(--border-color); box-shadow: 0 24px 64px rgba(0,0,0,.42); padding: clamp(1rem, 3vw, 1.75rem); }
+.title { font-family: var(--font-sans); letter-spacing: -.02em; }
+.subtitle, .overallMeta, .itemNum, .statusBadge, .retrySingleBtn, .errorMsgBox, .retryAllBtn, .zipDownloadBtn, .closeStudioBtn, .inProgressHint { font-family: var(--font-sans); }
+.subtitle { color: var(--text-secondary); line-height: 1.5; }
+.closeBtn, .retrySingleBtn, .btnDownloadClip, .retryAllBtn, .zipDownloadBtn, .closeStudioBtn { border-radius: 9px; box-shadow: none; }
+.closeBtn { width: 38px; height: 38px; }
+.overallBarWrap, .itemRow, .errorMsgBox { border-radius: 10px; }
+.overallBar, .overallFill { border-radius: 999px; }
+.itemRow { gap: .75rem; padding: .75rem .9rem; }
+.itemText { font-family: var(--font-sans); line-height: 1.4; }
+.statusBadge { border-radius: 999px; }
+.badgeActive { animation: none; }
+.footer { flex-wrap: wrap; }
+@media (max-width: 600px) {
+  .header { gap: .75rem; }
+  .title { font-size: 1.05rem; }
+  .itemRow { align-items: flex-start; flex-wrap: wrap; }
+  .itemColTitle { max-width: 100%; min-width: 0; }
+  .itemStatusWrap { width: 100%; justify-content: flex-end; }
+  .footer { justify-content: stretch; }
+  .footer > * { flex: 1 1 100%; justify-content: center; }
+}
