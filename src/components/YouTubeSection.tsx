@@ -18,7 +18,7 @@ export const YouTubeSection: React.FC<YouTubeSectionProps> = ({ batchProgress })
   const [checking, setChecking] = useState(true);
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState('');
-  const [selected, setSelected] = useState<{ fileName: string; title: string } | null>(null);
+  const [selected, setSelected] = useState<{ fileName: string; title: string; description: string } | null>(null);
   const [preparing, setPreparing] = useState<number | null>(null);
   const isId = document.documentElement.lang === 'id';
 
@@ -96,7 +96,7 @@ export const YouTubeSection: React.FC<YouTubeSectionProps> = ({ batchProgress })
         fileName = data.filename;
       }
       if (!fileName || !fileName.toLowerCase().endsWith('.mp4')) throw new Error('The rendered MP4 filename could not be identified.');
-      setSelected({ fileName, title: clip.title || 'Cheat Clip video' });
+      setSelected({ fileName, title: clip.title || 'Cheat Clip video', description: clip.description || '' });
     } catch (err: any) { setError(err?.message || 'Could not prepare the video for upload.'); }
     finally { setPreparing(null); }
   };
@@ -165,7 +165,7 @@ export const YouTubeSection: React.FC<YouTubeSectionProps> = ({ batchProgress })
         )}
         {!connection?.connected && <p style={{ margin: '12px 0 0', color: '#fbbf24', fontSize: 12 }}>Connect your YouTube account before uploading.</p>}
       </div>
-      {selected && <YouTubeUploadModal fileName={selected.fileName} initialTitle={selected.title} onClose={() => setSelected(null)} />}
+      {selected && <YouTubeUploadModal fileName={selected.fileName} initialTitle={selected.title} initialDescription={selected.description} onClose={() => setSelected(null)} />}
     </section>
   );
 };
