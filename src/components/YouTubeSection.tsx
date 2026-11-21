@@ -111,7 +111,7 @@ export const YouTubeSection: React.FC<YouTubeSectionProps> = ({ batchProgress })
         </div>
         <div style={{ flex: 1, minWidth: 180 }}>
           <h2 style={{ margin: 0, fontSize: 19 }}>YouTube Studio</h2>
-          <p style={{ margin: '5px 0 0', color: '#9ca3af', fontSize: 13 }}>Connect your channel, then publish videos rendered in Auto Clipper.</p>
+          <p style={{ margin: '5px 0 0', color: '#9ca3af', fontSize: 13 }}>Publish Auto Clipper videos using YouTube API or the Playwright browser uploader.</p>
         </div>
         {checking ? <span style={{ color: '#9ca3af', fontSize: 13 }}>Checking connection…</span> : connection?.connected ? (
           <>
@@ -127,7 +127,7 @@ export const YouTubeSection: React.FC<YouTubeSectionProps> = ({ batchProgress })
 
       {connection && !connection.configured && (
         <div role="alert" style={{ ...cardStyle, borderColor: 'rgba(245,158,11,.4)', color: '#fbbf24', fontSize: 13, lineHeight: 1.6 }}>
-          YouTube OAuth is not configured yet. Add YOUTUBE_CLIENT_ID and YOUTUBE_CLIENT_SECRET to backend/.env and enable YouTube Data API v3 in Google Cloud. Redirect URI: <code>{connection.redirect_uri || 'http://localhost:8000/api/youtube/callback'}</code>
+          YouTube API mode is not configured. This is optional if you use Browser Upload (Playwright). To enable API mode, add YOUTUBE_CLIENT_ID and YOUTUBE_CLIENT_SECRET to backend/.env and enable YouTube Data API v3 in Google Cloud. Redirect URI: <code>{connection.redirect_uri || 'http://localhost:8000/api/youtube/callback'}</code>
         </div>
       )}
       {error && <div role="alert" style={{ ...cardStyle, borderColor: 'rgba(248,113,113,.4)', color: '#fca5a5', fontSize: 13 }}>{error}</div>}
