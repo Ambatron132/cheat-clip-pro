@@ -7,6 +7,7 @@ class RenderSettingsModel(BaseModel):
     enable_face_tracking: bool = True
     streamer_preset: str = "none"
     facecam_position: Optional[str] = "auto"
+    facecam_crop: Optional[Dict[str, float]] = None
     title_text: Optional[str] = None
     title_prefix: Optional[str] = ""
     title_suffix: Optional[str] = ""
