@@ -62,6 +62,14 @@ export type TitlePosition = 'auto' | 'safe_zone' | 'middle' | 'none';
 export type TitleDurationOption = 'entire' | '5s' | '10s';
 export type SubtitlePositionMode = 'bottom' | 'center';
 export type StreamerPreset = 'none' | 'split_top_cam' | 'pip_corner';
+
+export interface FacecamCropRegion {
+  /** Normalized source-frame coordinates (0-1). */
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
 export type FacecamPosition = 'auto' | 'bottom_right' | 'top_right' | 'bottom_left' | 'top_left' | 'center' | 'left' | 'right';
 export type FontSizeOption = 'small' | 'medium' | 'big' | 'custom';
 export type TextCaseOption = 'uppercase' | 'capitalize' | 'lowercase';
@@ -102,6 +110,7 @@ export interface RenderSettings {
   enableFaceTracking: boolean;
   streamerPreset: StreamerPreset;
   facecamPosition?: FacecamPosition;
+  facecamCrop?: FacecamCropRegion;
   titleText?: string;
   titlePrefix?: string;
   titleSuffix?: string;
