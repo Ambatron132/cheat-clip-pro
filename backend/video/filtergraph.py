@@ -15,7 +15,8 @@ def build_ffmpeg_filtergraph(
     ass_subtitles_path: Optional[str] = None,
     face_box: Optional[Dict[str, Any]] = None,
     title_y_percent: Optional[float] = None,
-    crop_x_percent: Optional[float] = None
+    crop_x_percent: Optional[float] = None,
+    facecam_crop: Optional[Dict[str, float]] = None
 ) -> Tuple[str, str]:
     """
     Constructs the FFmpeg -filter_complex chain with proper aspect ratio center-cropping.
@@ -29,17 +30,39 @@ def build_ffmpeg_filtergraph(
     face_cx = float(face_box.get("cx", face_center_ratio)) if face_box else face_center_ratio
     face_cy = float(face_box.get("cy", 0.78 if streamer_preset in ["split_top_cam", "pip_corner"] else 0.35)) if face_box else 0.35
 
+    # Optional manually selected facecam rectangle, normalized to the original source frame.
+    custom_crop = None
+    if isinstance(facecam_crop, dict):
+        try:
+            crop_x = max(0.0, min(0.99, float(facecam_crop.get("x", 0.0))))
+            crop_y = max(0.0, min(0.99, float(facecam_crop.get("y", 0.0))))
+            crop_w = max(0.01, min(1.0 - crop_x, float(facecam_crop.get("width", 1.0))))
+            crop_h = max(0.01, min(1.0 - crop_y, float(facecam_crop.get("height", 1.0))))
+            custom_crop = {"x": crop_x, "y": crop_y, "width": crop_w, "height": crop_h}
+        except (TypeError, ValueError):
+            custom_crop = None
+
     # 1. Base Layout & Scaling
     if streamer_preset == "split_top_cam":
         if aspect_ratio == "16:9":
             # 16:9 split: top cam 1080x608 (16:9) tightly cropped around face, bottom feed 1080x608 (16:9)
-            cam_h = "min(ih, max(240, ih*0.38))"
-            cam_w = f"min(iw, ({cam_h})*16/9)"
-            cam_x = f"max(0, min(iw-ow, iw*{face_cx:.3f}-ow/2))"
-            cam_y = f"max(0, min(ih-oh, ih*{face_cy:.3f}-oh/2))"
+            if custom_crop:
+                cam_h = f"max(2, ih*{custom_crop['height']:.6f})"
+                cam_w = f"max(2, iw*{custom_crop['width']:.6f})"
+                cam_x = f"max(0, min(iw-ow, iw*{custom_crop['x']:.6f}))"
+                cam_y = f"max(0, min(ih-oh, ih*{custom_crop['y']:.6f}))"
+            else:
+                cam_h = "min(ih, max(240, ih*0.38))"
+                cam_w = f"min(iw, ({cam_h})*16/9)"
+                cam_x = f"max(0, min(iw-ow, iw*{face_cx:.3f}-ow/2))"
+                cam_y = f"max(0, min(ih-oh, ih*{face_cy:.3f}-oh/2))"
+            cam_output = (
+                "scale=1080:608:force_original_aspect_ratio=decrease,pad=1080:608:(ow-iw)/2:(oh-ih)/2:black"
+                if custom_crop else "scale=1080:608:flags=lanczos"
+            )
             filters.append(
                 f"[v_pts]split=2[cam_raw][game_raw];"
-                f"[cam_raw]crop='{cam_w}':'{cam_h}':'{cam_x}':'{cam_y}',scale=1080:608:flags=lanczos[cam_box];"
+                f"[cam_raw]crop='{cam_w}':'{cam_h}':'{cam_x}':'{cam_y}',{cam_output}[cam_box];"
                 f"[game_raw]crop='min(iw,ih*16/9)':'min(ih,iw*9/16)':'(iw-min(iw,ih*16/9))/2':'(ih-min(ih,iw*9/16))/2',scale=1080:608:flags=lanczos[game_box];"
                 f"[cam_box][game_box]vstack=inputs=2[both_split]"
             )
@@ -53,13 +76,23 @@ def build_ffmpeg_filtergraph(
 
         elif aspect_ratio == "1:1":
             # 1:1 split: top cam 960x960 (1:1) tightly cropped around face, bottom feed 960x960 (1:1)
-            cam_h = "min(ih, max(280, ih*0.38))"
-            cam_w = f"min(iw, {cam_h})"
-            cam_x = f"max(0, min(iw-ow, iw*{face_cx:.3f}-ow/2))"
-            cam_y = f"max(0, min(ih-oh, ih*{face_cy:.3f}-oh/2))"
+            if custom_crop:
+                cam_h = f"max(2, ih*{custom_crop['height']:.6f})"
+                cam_w = f"max(2, iw*{custom_crop['width']:.6f})"
+                cam_x = f"max(0, min(iw-ow, iw*{custom_crop['x']:.6f}))"
+                cam_y = f"max(0, min(ih-oh, ih*{custom_crop['y']:.6f}))"
+            else:
+                cam_h = "min(ih, max(280, ih*0.38))"
+                cam_w = f"min(iw, {cam_h})"
+                cam_x = f"max(0, min(iw-ow, iw*{face_cx:.3f}-ow/2))"
+                cam_y = f"max(0, min(ih-oh, ih*{face_cy:.3f}-oh/2))"
+            cam_output = (
+                "scale=960:960:force_original_aspect_ratio=decrease,pad=960:960:(ow-iw)/2:(oh-ih)/2:black"
+                if custom_crop else "scale=960:960:flags=lanczos"
+            )
             filters.append(
                 f"[v_pts]split=2[cam_raw][game_raw];"
-                f"[cam_raw]crop='{cam_w}':'{cam_h}':'{cam_x}':'{cam_y}',scale=960:960:flags=lanczos[cam_box];"
+                f"[cam_raw]crop='{cam_w}':'{cam_h}':'{cam_x}':'{cam_y}',{cam_output}[cam_box];"
                 f"[game_raw]crop='min(iw,ih)':'min(iw,ih)':'(iw-min(iw,ih))/2':'(ih-min(ih,iw))/2',scale=960:960:flags=lanczos[game_box];"
                 f"[cam_box][game_box]vstack=inputs=2[both_split]"
             )
@@ -73,13 +106,23 @@ def build_ffmpeg_filtergraph(
 
         elif aspect_ratio == "4:3":
             # 4:3 split: top cam 1080x810 (4:3) tightly cropped around face, bottom feed 1080x810 (4:3)
-            cam_h = "min(ih, max(280, ih*0.38))"
-            cam_w = f"min(iw, ({cam_h})*4/3)"
-            cam_x = f"max(0, min(iw-ow, iw*{face_cx:.3f}-ow/2))"
-            cam_y = f"max(0, min(ih-oh, ih*{face_cy:.3f}-oh/2))"
+            if custom_crop:
+                cam_h = f"max(2, ih*{custom_crop['height']:.6f})"
+                cam_w = f"max(2, iw*{custom_crop['width']:.6f})"
+                cam_x = f"max(0, min(iw-ow, iw*{custom_crop['x']:.6f}))"
+                cam_y = f"max(0, min(ih-oh, ih*{custom_crop['y']:.6f}))"
+            else:
+                cam_h = "min(ih, max(280, ih*0.38))"
+                cam_w = f"min(iw, ({cam_h})*4/3)"
+                cam_x = f"max(0, min(iw-ow, iw*{face_cx:.3f}-ow/2))"
+                cam_y = f"max(0, min(ih-oh, ih*{face_cy:.3f}-oh/2))"
+            cam_output = (
+                "scale=1080:810:force_original_aspect_ratio=decrease,pad=1080:810:(ow-iw)/2:(oh-ih)/2:black"
+                if custom_crop else "scale=1080:810:flags=lanczos"
+            )
             filters.append(
                 f"[v_pts]split=2[cam_raw][game_raw];"
-                f"[cam_raw]crop='{cam_w}':'{cam_h}':'{cam_x}':'{cam_y}',scale=1080:810:flags=lanczos[cam_box];"
+                f"[cam_raw]crop='{cam_w}':'{cam_h}':'{cam_x}':'{cam_y}',{cam_output}[cam_box];"
                 f"[game_raw]crop='min(iw,ih*4/3)':'min(ih,iw*3/4)':'(iw-min(iw,ih*4/3))/2':'(ih-min(ih,iw*3/4))/2',scale=1080:810:flags=lanczos[game_box];"
                 f"[cam_box][game_box]vstack=inputs=2[both_split]"
             )
@@ -93,10 +136,20 @@ def build_ffmpeg_filtergraph(
 
         else:  # 9:16
             # 9:16 Split: full bleed 1080x1920 with crisp facecam on top and centered gameplay on bottom
-            cam_h = "min(ih, max(280, ih*0.38))"
-            cam_w = f"min(iw, ({cam_h})*4/3)"
-            cam_x = f"max(0, min(iw-ow, iw*{face_cx:.3f}-ow/2))"
-            cam_y = f"max(0, min(ih-oh, ih*{face_cy:.3f}-oh/2))"
+            if custom_crop:
+                cam_h = f"max(2, ih*{custom_crop['height']:.6f})"
+                cam_w = f"max(2, iw*{custom_crop['width']:.6f})"
+                cam_x = f"max(0, min(iw-ow, iw*{custom_crop['x']:.6f}))"
+                cam_y = f"max(0, min(ih-oh, ih*{custom_crop['y']:.6f}))"
+            else:
+                cam_h = "min(ih, max(280, ih*0.38))"
+                cam_w = f"min(iw, ({cam_h})*4/3)"
+                cam_x = f"max(0, min(iw-ow, iw*{face_cx:.3f}-ow/2))"
+                cam_y = f"max(0, min(ih-oh, ih*{face_cy:.3f}-oh/2))"
+            cam_output = (
+                "scale=1080:810:force_original_aspect_ratio=decrease,pad=1080:810:(ow-iw)/2:(oh-ih)/2:black"
+                if custom_crop else "scale=1080:810:flags=lanczos"
+            )
 
             game_w = "min(iw, ih*1080/1110)"
             game_h = "ih"
@@ -105,7 +158,7 @@ def build_ffmpeg_filtergraph(
 
             filters.append(
                 f"[v_pts]split=2[cam_raw][game_raw];"
-                f"[cam_raw]crop='{cam_w}':'{cam_h}':'{cam_x}':'{cam_y}',scale=1080:810:flags=lanczos[cam_box];"
+                f"[cam_raw]crop='{cam_w}':'{cam_h}':'{cam_x}':'{cam_y}',{cam_output}[cam_box];"
                 f"[game_raw]crop='{game_w}':'{game_h}':'{game_x}':'{game_y}',scale=1080:1110:flags=lanczos[game_box];"
                 f"[cam_box][game_box]vstack=inputs=2[layout_base]"
             )
