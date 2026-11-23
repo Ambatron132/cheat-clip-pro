@@ -29,6 +29,7 @@ export interface WebCodecsRenderOptions {
   subtitleCenterYPercent?: number;
   streamerPreset?: 'none' | 'split_top_cam' | 'pip_corner';
   facecamPosition?: string;
+  facecamCrop?: { x: number; y: number; width: number; height: number };
   watermarkEnabled?: boolean;
   watermarkType?: 'image' | 'text';
   watermarkUrl?: string;
@@ -553,6 +554,7 @@ export async function renderClipWebCodecs(options: WebCodecsRenderOptions): Prom
     subtitleCenterYPercent = 50,
     streamerPreset = 'none',
     facecamPosition = 'auto',
+    facecamCrop,
     watermarkEnabled = false,
     watermarkType = 'image',
     watermarkUrl,
@@ -862,10 +864,25 @@ export async function renderClipWebCodecs(options: WebCodecsRenderOptions): Prom
       else if (pos === 'top_right') { fcx = 0.84; fcy = 0.22; }
       else if (pos === 'center') { fcx = 0.50; fcy = 0.50; }
       else if (pos === 'bottom_right') { fcx = 0.84; fcy = 0.78; }
-      const camH = Math.min(video.videoHeight, Math.max(260, video.videoHeight * 0.40));
-      const camW = Math.min(video.videoWidth, camH * (4 / 3));
-      const camX = Math.max(0, Math.min(video.videoWidth - camW, video.videoWidth * fcx - camW / 2));
-      const camY = Math.max(0, Math.min(video.videoHeight - camH, video.videoHeight * fcy - camH / 2));
+      let camX: number;
+      let camY: number;
+      let camW: number;
+      let camH: number;
+      if (facecamCrop) {
+        const cropX = Math.max(0, Math.min(0.99, Number(facecamCrop.x) || 0));
+        const cropY = Math.max(0, Math.min(0.99, Number(facecamCrop.y) || 0));
+        const cropW = Math.max(0.01, Math.min(1 - cropX, Number(facecamCrop.width) || 0.01));
+        const cropH = Math.max(0.01, Math.min(1 - cropY, Number(facecamCrop.height) || 0.01));
+        camX = Math.round(video.videoWidth * cropX);
+        camY = Math.round(video.videoHeight * cropY);
+        camW = Math.max(2, Math.min(video.videoWidth - camX, Math.round(video.videoWidth * cropW)));
+        camH = Math.max(2, Math.min(video.videoHeight - camY, Math.round(video.videoHeight * cropH)));
+      } else {
+        camH = Math.min(video.videoHeight, Math.max(260, video.videoHeight * 0.40));
+        camW = Math.min(video.videoWidth, camH * (4 / 3));
+        camX = Math.max(0, Math.min(video.videoWidth - camW, video.videoWidth * fcx - camW / 2));
+        camY = Math.max(0, Math.min(video.videoHeight - camH, video.videoHeight * fcy - camH / 2));
+      }
       ctx.drawImage(video, camX, camY, camW, camH, 0, 0, 1080, 810);
       const gameH = video.videoHeight;
       const gameW = Math.min(video.videoWidth, gameH * (1080 / 1110));
