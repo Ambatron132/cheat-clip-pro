@@ -3159,7 +3159,7 @@ Transcript:
       </div>
 
       <div className="app-container">
-        {/* Workflow Navigation Tabs Pipeline (01 SOURCE -> 02 RECOMMENDED CLIPS -> 03 AUTO CLIPPER) */}
+        {/* Workflow Navigation Tabs Pipeline (01 SOURCE -> 02 RECOMMENDED CLIPS -> 03 AUTO CLIPPER -> 04 YOUTUBE) */}
         <nav className="workflow-tab-bar" aria-label="Workflow Navigation">
           <button
             type="button"
@@ -3254,16 +3254,28 @@ Transcript:
             ) : null}
           </button>
 
+          <div className={`workflow-process-connector ${batchProgress?.clips?.some(c => c.status === 'completed') ? 'completed' : ''}`} aria-hidden="true">
+            <span className="connector-line" />
+            <span className="connector-arrow-box">
+              <ChevronRight size={13} strokeWidth={2.5} />
+            </span>
+            <span className="connector-line" />
+          </div>
+
           <button
             type="button"
             id="tab-step-youtube"
-            className={`workflow-tab-btn ${workflowTab === 'youtube' ? 'active' : ''}`}
+            className={`workflow-tab-btn ${workflowTab === 'youtube' ? 'active' : ''} ${batchProgress?.clips?.some(c => c.status === 'completed') ? 'step-has-content' : ''}`}
             onClick={() => setWorkflowTab('youtube')}
-            title="Connect YouTube and upload completed clips"
-            aria-label="YouTube Upload"
+            title="Step 04: connect YouTube and upload completed clips"
+            aria-label="04 YouTube Upload"
           >
+            <span className="workflow-step-num">04</span>
             <Play size={15} className="workflow-step-icon" />
             <span className="workflow-step-title">YOUTUBE</span>
+            {batchProgress?.clips?.some(c => c.status === 'completed') ? (
+              <span className="workflow-tab-count">[READY]</span>
+            ) : null}
           </button>
         </nav>
 
@@ -3298,51 +3310,30 @@ Transcript:
               <span className="studio-tab-preview-count">[{result.clips?.length || 0} klip tersedia]</span>
             </div>
             <div className="active-video-actions">
-              {/* If on Tab 01 (Source): Show 02 -> and 03 -> */}
+              {/* Step 01: Source -> Step 02: Recommended Clips */}
               {workflowTab === 'source' && (
-                <>
-                  <button
-                    type="button"
-                    className="glowing-btn"
-                    onClick={() => setWorkflowTab('clips')}
-                    style={{
-                      padding: '0.4rem 0.95rem',
-                      fontSize: '0.78rem',
-                      background: 'transparent',
-                      color: 'var(--text-primary)',
-                      fontWeight: 700,
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.4rem'
-                    }}
-                  >
-                    <span>[ 02 LIHAT CLIPS</span>
-                    <ArrowRight size={13} />
-                    <span>]</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="glowing-btn"
-                    onClick={() => setWorkflowTab('clipper')}
-                    style={{
-                      padding: '0.4rem 0.95rem',
-                      fontSize: '0.78rem',
-                      background: 'transparent',
-                      color: 'var(--text-primary)',
-                      fontWeight: 700,
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.4rem'
-                    }}
-                  >
-                    <span>[ 03 AUTO CLIPPER</span>
-                    <ArrowRight size={13} />
-                    <span>]</span>
-                  </button>
-                </>
+                <button
+                  type="button"
+                  className="glowing-btn"
+                  onClick={() => setWorkflowTab('clips')}
+                  style={{
+                    padding: '0.4rem 0.95rem',
+                    fontSize: '0.78rem',
+                    background: 'var(--primary)',
+                    color: '#000000',
+                    fontWeight: 700,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.4rem'
+                  }}
+                >
+                  <span>[ 02 RECOMMENDED CLIPS</span>
+                  <ArrowRight size={13} />
+                  <span>]</span>
+                </button>
               )}
 
-              {/* If on Tab 02 (Clips): Show <- 01 and 03 -> */}
+              {/* Step 02: back to Source, forward to Auto Clipper */}
               {workflowTab === 'clips' && (
                 <>
                   <button
@@ -3386,28 +3377,9 @@ Transcript:
                 </>
               )}
 
-              {/* If on Tab 03 (Auto Clipper): Show <- 01 and <- 02 */}
+              {/* Step 03: back to Recommended Clips, forward to YouTube */}
               {workflowTab === 'clipper' && (
                 <>
-                  <button
-                    type="button"
-                    className="glowing-btn"
-                    onClick={() => setWorkflowTab('source')}
-                    style={{
-                      padding: '0.4rem 0.95rem',
-                      fontSize: '0.78rem',
-                      background: 'transparent',
-                      color: 'var(--text-primary)',
-                      fontWeight: 700,
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.4rem'
-                    }}
-                  >
-                    <span>[</span>
-                    <ArrowLeft size={13} />
-                    <span>01 SOURCE ]</span>
-                  </button>
                   <button
                     type="button"
                     className="glowing-btn"
@@ -3425,9 +3397,51 @@ Transcript:
                   >
                     <span>[</span>
                     <ArrowLeft size={13} />
-                    <span>02 LIHAT CLIPS ]</span>
+                    <span>02 RECOMMENDED CLIPS ]</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="glowing-btn"
+                    onClick={() => setWorkflowTab('youtube')}
+                    style={{
+                      padding: '0.4rem 0.95rem',
+                      fontSize: '0.78rem',
+                      background: 'var(--primary)',
+                      color: '#000000',
+                      fontWeight: 700,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.4rem'
+                    }}
+                  >
+                    <span>[ 04 YOUTUBE</span>
+                    <ArrowRight size={13} />
+                    <span>]</span>
                   </button>
                 </>
+              )}
+
+              {/* Step 04: back to Auto Clipper */}
+              {workflowTab === 'youtube' && (
+                <button
+                  type="button"
+                  className="glowing-btn"
+                  onClick={() => setWorkflowTab('clipper')}
+                  style={{
+                    padding: '0.4rem 0.95rem',
+                    fontSize: '0.78rem',
+                    background: 'transparent',
+                    color: 'var(--text-primary)',
+                    fontWeight: 700,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.4rem'
+                  }}
+                >
+                  <span>[</span>
+                  <ArrowLeft size={13} />
+                  <span>03 AUTO CLIPPER ]</span>
+                </button>
               )}
 
               <button
