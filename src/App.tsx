@@ -444,6 +444,17 @@ export default function App() {
     return true;
   }, [sourceMode, result?.source_type, result?.video_id, result?.video_url]);
 
+  const activeYouTubeUrl = useMemo(() => {
+    if (!result || !isCurrentVideoYouTube()) return null;
+    const sourceUrl = result.video_url?.trim();
+    if (sourceUrl && (sourceUrl.includes('youtube.com') || sourceUrl.includes('youtu.be'))) {
+      return sourceUrl;
+    }
+    return result.video_id
+      ? `https://www.youtube.com/watch?v=${encodeURIComponent(result.video_id)}`
+      : null;
+  }, [result, isCurrentVideoYouTube]);
+
   const handleStartBatchRender = async (settings: RenderSettings, forceProceed = false) => {
     if (!result) return;
 
@@ -3261,7 +3272,29 @@ Transcript:
           <div className="active-video-banner">
             <div className="active-video-info">
               <span className="studio-tab-preview-title">&gt;_ ACTIVE VIDEO:</span>
-              <span className="studio-tab-preview-name">{result.title}</span>
+              {activeYouTubeUrl ? (
+                <a
+                  className="studio-tab-preview-name"
+                  href={activeYouTubeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Open original video on YouTube"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    color: 'inherit',
+                    textDecoration: 'underline dotted',
+                    textUnderlineOffset: '3px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {result.title}
+                  <ExternalLink size={12} aria-hidden="true" />
+                </a>
+              ) : (
+                <span className="studio-tab-preview-name">{result.title}</span>
+              )}
               <span className="studio-tab-preview-count">[{result.clips?.length || 0} klip tersedia]</span>
             </div>
             <div className="active-video-actions">
@@ -6474,6 +6507,7 @@ Transcript:
                 allowAppUpdates={allowAppUpdates}
                 onOpenCookiesModal={() => setIsCookiesModalOpen(true)}
                 onBackToClips={() => setWorkflowTab('clips')}
+                onOpenYouTubeUpload={() => setWorkflowTab('youtube')}
               />
             </Suspense>
             )}
