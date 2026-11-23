@@ -374,6 +374,7 @@ async def render_single_batch_clip(
             hardware_accel=settings.hardware_accel or "auto",
             title_y_percent=settings.title_y_percent,
             crop_x_percent=getattr(settings, "crop_x_percent", None),
+            facecam_crop=getattr(settings, "facecam_crop", None),
             title_x_percent=getattr(settings, "title_x_percent", 50.0),
             progress_callback=_on_single_clip_progress,
             on_process_spawned=lambda p: register_batch_process(batch_id, p)
@@ -761,6 +762,7 @@ async def render_merged_batch_clips(
             hardware_accel=settings.hardware_accel or "auto",
             title_y_percent=settings.title_y_percent,
             crop_x_percent=getattr(settings, "crop_x_percent", None),
+            facecam_crop=getattr(settings, "facecam_crop", None),
             title_x_percent=getattr(settings, "title_x_percent", 50.0),
             progress_callback=_on_compilation_progress,
             on_process_spawned=lambda p: register_batch_process(batch_id, p)
