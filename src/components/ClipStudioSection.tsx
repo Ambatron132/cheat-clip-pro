@@ -31,6 +31,7 @@ import type {
   TitlePosition,
   StreamerPreset,
   FacecamPosition,
+  FacecamCropRegion,
   FontSizeOption,
   TextCaseOption,
   TitleDurationOption,
@@ -259,6 +260,8 @@ export interface StudioPreferences {
   isManualCropX?: boolean;
   streamerPreset?: StreamerPreset;
   facecamPosition?: FacecamPosition;
+  useCustomFacecamCrop?: boolean;
+  facecamCrop?: FacecamCropRegion;
   titlePosition?: TitlePosition;
   captionStyle?: CaptionStyle;
   captionFont?: CaptionFont;
@@ -296,6 +299,8 @@ export const DEFAULT_STUDIO_PREFS: Required<StudioPreferences> = {
   isManualCropX: false,
   streamerPreset: 'none',
   facecamPosition: 'auto',
+  useCustomFacecamCrop: false,
+  facecamCrop: { x: 0.015, y: 0.135, width: 0.93, height: 0.30 },
   titlePosition: 'auto',
   captionStyle: 'viral_pop',
   captionFont: 'Outfit',
@@ -382,6 +387,8 @@ export const ClipStudioSection: React.FC<ClipStudioSectionProps> = ({
   const [isManualCropX, setIsManualCropX] = useState<boolean>(() => getSavedStudioPreferences().isManualCropX ?? DEFAULT_STUDIO_PREFS.isManualCropX);
   const [streamerPreset, setStreamerPreset] = useState<StreamerPreset>(() => getSavedStudioPreferences().streamerPreset ?? DEFAULT_STUDIO_PREFS.streamerPreset);
   const [facecamPosition, setFacecamPosition] = useState<FacecamPosition>(() => getSavedStudioPreferences().facecamPosition ?? DEFAULT_STUDIO_PREFS.facecamPosition);
+  const [useCustomFacecamCrop, setUseCustomFacecamCrop] = useState<boolean>(() => getSavedStudioPreferences().useCustomFacecamCrop ?? DEFAULT_STUDIO_PREFS.useCustomFacecamCrop);
+  const [facecamCrop, setFacecamCrop] = useState<FacecamCropRegion>(() => getSavedStudioPreferences().facecamCrop ?? DEFAULT_STUDIO_PREFS.facecamCrop);
   const [titlePrefix, setTitlePrefix] = useState<string>(() => getSavedStudioPreferences().titlePrefix ?? DEFAULT_STUDIO_PREFS.titlePrefix);
   const [titleSuffix, setTitleSuffix] = useState<string>(() => getSavedStudioPreferences().titleSuffix ?? DEFAULT_STUDIO_PREFS.titleSuffix);
   const [customClipTitles, setCustomClipTitles] = useState<Record<string, string>>({});
@@ -1760,6 +1767,8 @@ export const ClipStudioSection: React.FC<ClipStudioSectionProps> = ({
       isManualCropX,
       streamerPreset,
       facecamPosition,
+      useCustomFacecamCrop,
+      facecamCrop,
       titlePosition,
       captionStyle,
       captionFont,
@@ -1798,6 +1807,8 @@ export const ClipStudioSection: React.FC<ClipStudioSectionProps> = ({
     enableFaceTracking,
     streamerPreset,
     facecamPosition,
+    useCustomFacecamCrop,
+    facecamCrop,
     titlePosition,
     captionStyle,
     captionFont,
@@ -1832,6 +1843,8 @@ export const ClipStudioSection: React.FC<ClipStudioSectionProps> = ({
     setEnableFaceTracking(DEFAULT_STUDIO_PREFS.enableFaceTracking);
     setStreamerPreset(DEFAULT_STUDIO_PREFS.streamerPreset);
     setFacecamPosition(DEFAULT_STUDIO_PREFS.facecamPosition);
+    setUseCustomFacecamCrop(DEFAULT_STUDIO_PREFS.useCustomFacecamCrop);
+    setFacecamCrop(DEFAULT_STUDIO_PREFS.facecamCrop);
     setTitlePosition(DEFAULT_STUDIO_PREFS.titlePosition);
     setCaptionStyle(DEFAULT_STUDIO_PREFS.captionStyle);
     setLastActiveCaptionStyle(DEFAULT_STUDIO_PREFS.captionStyle);
@@ -1892,6 +1905,7 @@ export const ClipStudioSection: React.FC<ClipStudioSectionProps> = ({
       enableFaceTracking,
       streamerPreset,
       facecamPosition,
+      facecamCrop: streamerPreset === 'split_top_cam' && useCustomFacecamCrop ? facecamCrop : undefined,
       titleText: enrichedSelectedClips.length === 1 ? formattedTitle : undefined,
       titlePrefix,
       titleSuffix,
@@ -2361,6 +2375,63 @@ export const ClipStudioSection: React.FC<ClipStudioSectionProps> = ({
                 <p style={{ fontSize: '0.72rem', color: 'var(--text-muted, #94a3b8)', marginTop: '0.35rem', margin: '0.35rem 0 0 0' }}>
                   {t.studio.facecamHint || 'Tip: Select your webcam corner if auto-detection misses dark rooms or VTuber avatars.'}
                 </p>
+
+                {streamerPreset === 'split_top_cam' && (
+                  <div style={{ marginTop: '0.8rem', padding: '0.75rem', borderRadius: '8px', background: 'rgba(56, 189, 248, 0.045)', border: '1px solid rgba(56, 189, 248, 0.18)' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', fontSize: '0.8rem', fontWeight: 650, color: 'var(--text-primary)', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={useCustomFacecamCrop} onChange={e => setUseCustomFacecamCrop(e.target.checked)} />
+                      Custom facecam crop region
+                    </label>
+                    <p style={{ fontSize: '0.7rem', color: 'var(--text-muted, #94a3b8)', margin: '0.4rem 0 0.7rem' }}>
+                      Crop the top camera panel to an exact rectangle in the original video. Adjust X, Y, width and height to exclude counters, borders and other overlays. Values are percentages of the source frame.
+                    </p>
+                    {useCustomFacecamCrop && (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '0.7rem 1rem' }}>
+                        {([
+                          { key: 'x', label: 'Left / X', max: Math.max(0, 100 - Math.round(facecamCrop.width * 100)) },
+                          { key: 'y', label: 'Top / Y', max: Math.max(0, 100 - Math.round(facecamCrop.height * 100)) },
+                          { key: 'width', label: 'Width', max: Math.max(5, 100 - Math.round(facecamCrop.x * 100)) },
+                          { key: 'height', label: 'Height', max: Math.max(5, 100 - Math.round(facecamCrop.y * 100)) },
+                        ] as const).map(item => {
+                          const value = Math.round(facecamCrop[item.key] * 100);
+                          const min = item.key === 'width' || item.key === 'height' ? 5 : 0;
+                          return (
+                            <label key={item.key} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                              <span style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem' }}>
+                                <span>{item.label}</span><strong style={{ color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>{value}%</strong>
+                              </span>
+                              <input type="range" min={min} max={item.max} step="1" value={Math.min(value, item.max)}
+                                onChange={e => {
+                                  const next = Number(e.target.value) / 100;
+                                  setFacecamCrop(prev => {
+                                    const updated = { ...prev };
+                                    if (item.key === 'x') updated.x = next;
+                                    else if (item.key === 'y') updated.y = next;
+                                    else if (item.key === 'width') updated.width = next;
+                                    else updated.height = next;
+                                    updated.width = Math.max(0.05, Math.min(updated.width, 1 - updated.x));
+                                    updated.height = Math.max(0.05, Math.min(updated.height, 1 - updated.y));
+                                    updated.x = Math.max(0, Math.min(updated.x, 1 - updated.width));
+                                    updated.y = Math.max(0, Math.min(updated.y, 1 - updated.height));
+                                    return updated;
+                                  });
+                                }}
+                                style={{ width: '100%', accentColor: '#38bdf8' }}
+                              />
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {useCustomFacecamCrop && (
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.65rem' }}>
+                        <button type="button" className="pill-btn" onClick={() => setFacecamCrop(DEFAULT_STUDIO_PREFS.facecamCrop)} style={{ fontSize: '0.7rem', padding: '0.25rem 0.55rem' }}>
+                          Reset crop rectangle
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
