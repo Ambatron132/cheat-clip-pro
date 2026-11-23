@@ -3103,7 +3103,8 @@ def build_ffmpeg_filtergraph(
     ass_subtitles_path: Optional[str] = None,
     face_box: Optional[Dict[str, Any]] = None,
     title_y_percent: Optional[float] = None,
-    crop_x_percent: Optional[float] = None
+    crop_x_percent: Optional[float] = None,
+    facecam_crop: Optional[Dict[str, Any]] = None
 ) -> Tuple[str, str]:
     """
     Constructs the FFmpeg -filter_complex chain with proper aspect ratio center-cropping.
@@ -3120,7 +3121,8 @@ def build_ffmpeg_filtergraph(
         ass_subtitles_path=ass_subtitles_path,
         face_box=face_box,
         title_y_percent=title_y_percent,
-        crop_x_percent=crop_x_percent
+        crop_x_percent=crop_x_percent,
+        facecam_crop=facecam_crop
     )
 
 
@@ -3264,6 +3266,7 @@ def render_clip_to_mp4(
     hardware_accel: Optional[str] = "auto",
     title_y_percent: Optional[float] = None,
     crop_x_percent: Optional[float] = None,
+    facecam_crop: Optional[Dict[str, Any]] = None,
     title_x_percent: Optional[float] = 50.0,
     progress_callback: Optional[Callable[[float], None]] = None,
     on_process_spawned: Optional[Callable[[subprocess.Popen], None]] = None
@@ -3312,7 +3315,8 @@ def render_clip_to_mp4(
         ass_subtitles_path=ass_subtitles_path,
         face_box=face_box,
         title_y_percent=title_y_percent,
-        crop_x_percent=crop_x_percent
+        crop_x_percent=crop_x_percent,
+        facecam_crop=facecam_crop
     )
 
     filter_chains = [filter_complex]
