@@ -883,7 +883,21 @@ export async function renderClipWebCodecs(options: WebCodecsRenderOptions): Prom
         camX = Math.max(0, Math.min(video.videoWidth - camW, video.videoWidth * fcx - camW / 2));
         camY = Math.max(0, Math.min(video.videoHeight - camH, video.videoHeight * fcy - camH / 2));
       }
-      ctx.drawImage(video, camX, camY, camW, camH, 0, 0, 1080, 810);
+      if (facecamCrop) {
+        // Preserve the selected source rectangle's aspect ratio inside the facecam panel.
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, 1080, 810);
+        const fitScale = Math.min(1080 / camW, 810 / camH);
+        const fitW = camW * fitScale;
+        const fitH = camH * fitScale;
+        ctx.drawImage(
+          video,
+          camX, camY, camW, camH,
+          (1080 - fitW) / 2, (810 - fitH) / 2, fitW, fitH
+        );
+      } else {
+        ctx.drawImage(video, camX, camY, camW, camH, 0, 0, 1080, 810);
+      }
       const gameH = video.videoHeight;
       const gameW = Math.min(video.videoWidth, gameH * (1080 / 1110));
       const gameX = Math.max(0, (video.videoWidth - gameW) / 2);
