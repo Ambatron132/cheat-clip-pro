@@ -101,6 +101,7 @@ interface ClipStudioSectionProps {
   allowAppUpdates?: boolean;
   onOpenCookiesModal?: () => void;
   onBackToClips?: () => void;
+  onOpenYouTubeUpload?: () => void;
   transcript?: TranscriptLine[];
 }
 
@@ -354,6 +355,7 @@ export const ClipStudioSection: React.FC<ClipStudioSectionProps> = ({
   allowAppUpdates = false,
   onOpenCookiesModal,
   onBackToClips,
+  onOpenYouTubeUpload,
   transcript = [],
 }) => {
   const { t } = useLanguage();
@@ -5281,14 +5283,33 @@ export const ClipStudioSection: React.FC<ClipStudioSectionProps> = ({
                           <span className="file-idx">#{i + 1}</span>
                           <span className="file-name" title={c.title}>{c.title}</span>
                           {c.download_url && (
-                            <a
-                              href={dlUrlWithTitle}
-                              download={`${finalClipName}.mp4`}
-                              className="quick-dl-btn"
-                              title={`Download ${finalClipName}.mp4`}
-                            >
-                              ⬇️ MP4
-                            </a>
+                            <>
+                              <a
+                                href={dlUrlWithTitle}
+                                download={`${finalClipName}.mp4`}
+                                className="quick-dl-btn"
+                                title={`Download ${finalClipName}.mp4`}
+                              >
+                                ⬇️ MP4
+                              </a>
+                              {onOpenYouTubeUpload && (
+                                <button
+                                  type="button"
+                                  className="quick-dl-btn"
+                                  onClick={onOpenYouTubeUpload}
+                                  title="Open the YouTube upload screen for completed renders"
+                                  style={{
+                                    border: 0,
+                                    color: '#f87171',
+                                    background: 'rgba(239, 68, 68, 0.16)',
+                                    cursor: 'pointer',
+                                    fontFamily: 'inherit',
+                                  }}
+                                >
+                                  ↗ YOUTUBE
+                                </button>
+                              )}
+                            </>
                           )}
                         </div>
                       );
