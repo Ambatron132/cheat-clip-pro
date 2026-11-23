@@ -146,6 +146,10 @@ def build_ffmpeg_filtergraph(
                 cam_w = f"min(iw, ({cam_h})*4/3)"
                 cam_x = f"max(0, min(iw-ow, iw*{face_cx:.3f}-ow/2))"
                 cam_y = f"max(0, min(ih-oh, ih*{face_cy:.3f}-oh/2))"
+            cam_output = (
+                "scale=1080:810:force_original_aspect_ratio=decrease,pad=1080:810:(ow-iw)/2:(oh-ih)/2:black"
+                if custom_crop else "scale=1080:810:flags=lanczos"
+            )
 
             game_w = "min(iw, ih*1080/1110)"
             game_h = "ih"
