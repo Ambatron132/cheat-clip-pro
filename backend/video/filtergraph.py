@@ -56,9 +56,13 @@ def build_ffmpeg_filtergraph(
                 cam_w = f"min(iw, ({cam_h})*16/9)"
                 cam_x = f"max(0, min(iw-ow, iw*{face_cx:.3f}-ow/2))"
                 cam_y = f"max(0, min(ih-oh, ih*{face_cy:.3f}-oh/2))"
+            cam_output = (
+                "scale=1080:608:force_original_aspect_ratio=decrease,pad=1080:608:(ow-iw)/2:(oh-ih)/2:black"
+                if custom_crop else "scale=1080:608:flags=lanczos"
+            )
             filters.append(
                 f"[v_pts]split=2[cam_raw][game_raw];"
-                f"[cam_raw]crop='{cam_w}':'{cam_h}':'{cam_x}':'{cam_y}',scale=1080:608:flags=lanczos[cam_box];"
+                f"[cam_raw]crop='{cam_w}':'{cam_h}':'{cam_x}':'{cam_y}',{cam_output}[cam_box];"
                 f"[game_raw]crop='min(iw,ih*16/9)':'min(ih,iw*9/16)':'(iw-min(iw,ih*16/9))/2':'(ih-min(ih,iw*9/16))/2',scale=1080:608:flags=lanczos[game_box];"
                 f"[cam_box][game_box]vstack=inputs=2[both_split]"
             )
@@ -82,9 +86,13 @@ def build_ffmpeg_filtergraph(
                 cam_w = f"min(iw, {cam_h})"
                 cam_x = f"max(0, min(iw-ow, iw*{face_cx:.3f}-ow/2))"
                 cam_y = f"max(0, min(ih-oh, ih*{face_cy:.3f}-oh/2))"
+            cam_output = (
+                "scale=960:960:force_original_aspect_ratio=decrease,pad=960:960:(ow-iw)/2:(oh-ih)/2:black"
+                if custom_crop else "scale=960:960:flags=lanczos"
+            )
             filters.append(
                 f"[v_pts]split=2[cam_raw][game_raw];"
-                f"[cam_raw]crop='{cam_w}':'{cam_h}':'{cam_x}':'{cam_y}',scale=960:960:flags=lanczos[cam_box];"
+                f"[cam_raw]crop='{cam_w}':'{cam_h}':'{cam_x}':'{cam_y}',{cam_output}[cam_box];"
                 f"[game_raw]crop='min(iw,ih)':'min(iw,ih)':'(iw-min(iw,ih))/2':'(ih-min(ih,iw))/2',scale=960:960:flags=lanczos[game_box];"
                 f"[cam_box][game_box]vstack=inputs=2[both_split]"
             )
@@ -108,9 +116,13 @@ def build_ffmpeg_filtergraph(
                 cam_w = f"min(iw, ({cam_h})*4/3)"
                 cam_x = f"max(0, min(iw-ow, iw*{face_cx:.3f}-ow/2))"
                 cam_y = f"max(0, min(ih-oh, ih*{face_cy:.3f}-oh/2))"
+            cam_output = (
+                "scale=1080:810:force_original_aspect_ratio=decrease,pad=1080:810:(ow-iw)/2:(oh-ih)/2:black"
+                if custom_crop else "scale=1080:810:flags=lanczos"
+            )
             filters.append(
                 f"[v_pts]split=2[cam_raw][game_raw];"
-                f"[cam_raw]crop='{cam_w}':'{cam_h}':'{cam_x}':'{cam_y}',scale=1080:810:flags=lanczos[cam_box];"
+                f"[cam_raw]crop='{cam_w}':'{cam_h}':'{cam_x}':'{cam_y}',{cam_output}[cam_box];"
                 f"[game_raw]crop='min(iw,ih*4/3)':'min(ih,iw*3/4)':'(iw-min(iw,ih*4/3))/2':'(ih-min(ih,iw*3/4))/2',scale=1080:810:flags=lanczos[game_box];"
                 f"[cam_box][game_box]vstack=inputs=2[both_split]"
             )
@@ -142,7 +154,7 @@ def build_ffmpeg_filtergraph(
 
             filters.append(
                 f"[v_pts]split=2[cam_raw][game_raw];"
-                f"[cam_raw]crop='{cam_w}':'{cam_h}':'{cam_x}':'{cam_y}',scale=1080:810:flags=lanczos[cam_box];"
+                f"[cam_raw]crop='{cam_w}':'{cam_h}':'{cam_x}':'{cam_y}',{cam_output}[cam_box];"
                 f"[game_raw]crop='{game_w}':'{game_h}':'{game_x}':'{game_y}',scale=1080:1110:flags=lanczos[game_box];"
                 f"[cam_box][game_box]vstack=inputs=2[layout_base]"
             )
