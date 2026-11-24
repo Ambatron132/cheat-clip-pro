@@ -914,8 +914,7 @@ export async function renderClipWebCodecs(options: WebCodecsRenderOptions): Prom
   let frameIndex = 0;
   const totalFrames = Math.ceil(totalDuration * fps);
 
-  if (onProgress) onProgress(20, 'Memulai render frame dengan GPU hardware acceleration...', { frameIndex: 0, totalFrames });
-  const renderStartTime = performance.now();
+  if (onProgress) onProgress(20, 'Memulai render frame dengan GPU hardware acceleration...');
 
   // Setup low-res offscreen canvas for high-performance background blur (20x faster, zero CPU bottleneck)
   const bgCanvas = document.createElement('canvas');
