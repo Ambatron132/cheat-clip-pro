@@ -1892,6 +1892,7 @@ export const ClipStudioSection: React.FC<ClipStudioSectionProps> = ({
       enableFaceTracking,
       streamerPreset,
       facecamPosition,
+      faceBox: faceBox?.found ? faceBox : undefined,
       titleText: enrichedSelectedClips.length === 1 ? formattedTitle : undefined,
       titlePrefix,
       titleSuffix,
