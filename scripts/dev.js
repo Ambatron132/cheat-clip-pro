@@ -17,6 +17,7 @@ const COLORS = {
   cyan: '\x1b[36m',
   magenta: '\x1b[35m',
   yellow: '\x1b[33m',
+  green: '\x1b[32m',
   red: '\x1b[31m',
   gray: '\x1b[90m',
   bold: '\x1b[1m'
@@ -175,7 +176,7 @@ async function main() {
   }
 
   if (isShuttingDown) return;
-  console.log(`${COLORS.green || '\\x1b[32m'}✓ FastAPI is ready. Starting Vite... ${COLORS.reset}`);
+  console.log(`${COLORS.green}✓ FastAPI is ready. Starting Vite... ${COLORS.reset}`);
   startFrontend();
 }
 
