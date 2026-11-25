@@ -1887,6 +1887,10 @@ export const ClipStudioSection: React.FC<ClipStudioSectionProps> = ({
   };
 
   const handleLaunch = () => {
+    if (outroVideoFile && renderMode === 'merged') {
+      alert('Outro Video is currently available with Separate Clips mode. Please switch Render Mode to Separate Clips.');
+      return;
+    }
     const enrichedSelectedClips = selectedClips.map(c => {
       const key = `${c.start_time}_${c.end_time}`;
       const custom = customClipTitles[key];
