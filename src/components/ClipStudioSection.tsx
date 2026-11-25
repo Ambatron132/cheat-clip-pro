@@ -3761,7 +3761,7 @@ export const ClipStudioSection: React.FC<ClipStudioSectionProps> = ({
                 >
                   <input
                     type="file"
-                    accept=".mp4,.mov,.webm,video/mp4,video/quicktime,video/webm"
+                    accept=".mp4,.mov,.webm,.mkv,video/mp4,video/quicktime,video/webm,video/x-matroska"
                     onChange={e => {
                       handleOutroVideoFile(e.target.files?.[0]);
                       e.target.value = '';
@@ -3771,7 +3771,7 @@ export const ClipStudioSection: React.FC<ClipStudioSectionProps> = ({
                   <div className="dropzone-icon"><Film size={20} color="#a855f7" /></div>
                   <div className="dropzone-text">
                     <span className="dropzone-main-text">{isOutroDragging ? 'Drop outro video here' : 'Upload Outro Video'}</span>
-                    <span className="dropzone-sub-text">MP4, MOV, WebM (drag & drop or click to browse)</span>
+                    <span className="dropzone-sub-text">MP4, MOV, WebM, MKV (drag & drop or click to browse)</span>
                   </div>
                 </label>
               ) : (
