@@ -135,10 +135,10 @@ async def append_outro_video(
 
         video_filter = (
             f"[0:v]fps={fps},scale={width}:{height}:force_original_aspect_ratio=decrease,"
-            f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2,setsar=1,setpts=PTS-STARTPTS,"
+            f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2,setsar=1,settb=AVTB,setpts=PTS-STARTPTS,"
             f"format=yuv420p[v0];"
             f"[1:v]scale={width}:{height}:force_original_aspect_ratio=decrease,"
-            f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2,fps={fps},setsar=1,"
+            f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2,fps={fps},setsar=1,settb=AVTB,"
             f"setpts=PTS-STARTPTS,format=yuv420p[v1];"
             f"[v0][v1]concat=n=2:v=1:a=0[v]"
         )
