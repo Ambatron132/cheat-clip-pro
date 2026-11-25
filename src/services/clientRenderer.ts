@@ -211,6 +211,137 @@ export async function renderClipClientSide(options: ClientRenderOptions): Promis
   return blob;
 }
 
+
+/**
+ * Appends an optional outro video to a rendered clip using a video crossfade.
+ * The main clip's audio is retained and faded down at the transition. If the
+ * outro contains audio, it is preserved as a second audio stream.
+ */
+export async function appendOutroVideo(
+  mainBlob: Blob,
+  outroFile: File,
+  fadeDuration = 0.75,
+  onProgress?: (percent: number, stage: string) => void
+): Promise<Blob> {
+  const ffmpeg = await getFFmpeg();
+  const mainUrl = URL.createObjectURL(mainBlob);
+  const outroUrl = URL.createObjectURL(outroFile);
+  const readVideoMetadata = (url: string) => new Promise<{ duration: number; width: number; height: number }>((resolve, reject) => {
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    video.onloadedmetadata = () => {
+      const metadata = { duration: video.duration, width: video.videoWidth, height: video.videoHeight };
+      video.src = '';
+      resolve(metadata);
+    };
+    video.onerror = () => reject(new Error('Unable to read the main or outro video metadata.'));
+    video.src = url;
+  });
+
+  const ffmpegDiagnostics: string[] = [];
+  const diagnosticHandler = ({ message }: { message: string }) => {
+    ffmpegDiagnostics.push(message);
+    if (ffmpegDiagnostics.length > 40) ffmpegDiagnostics.shift();
+  };
+  ffmpeg.on('log', diagnosticHandler);
+
+  try {
+    if (onProgress) onProgress(94, 'Preparing outro video and transition...');
+    const [mainMeta, outroMeta] = await Promise.all([readVideoMetadata(mainUrl), readVideoMetadata(outroUrl)]);
+    if (!Number.isFinite(mainMeta.duration) || !Number.isFinite(outroMeta.duration) || !mainMeta.width || !mainMeta.height) {
+      throw new Error('The uploaded outro video has invalid duration or dimensions.');
+    }
+
+    const transitionDuration = Math.max(0, Math.min(fadeDuration, mainMeta.duration, outroMeta.duration));
+    const transitionOffset = Math.max(0, mainMeta.duration - transitionDuration);
+    const mainInput = 'outro-main-input.mp4';
+    const outroInput = 'outro-source-input.mp4';
+    const outputName = 'outro-final-output.mp4';
+    await ffmpeg.writeFile(mainInput, await fetchFile(mainBlob));
+    await ffmpeg.writeFile(outroInput, await fetchFile(outroFile));
+
+    // Inspect stream metadata so audio filters only reference tracks that exist.
+    let mainHasAudio = false;
+    let outroHasAudio = false;
+    const probeLog = ({ message }: { message: string }) => {
+      if (/Stream #0:\d+.*Audio:/i.test(message)) mainHasAudio = true;
+      if (/Stream #1:\d+.*Audio:/i.test(message)) outroHasAudio = true;
+    };
+    ffmpeg.on('log', probeLog);
+    try {
+      await ffmpeg.exec(['-i', mainInput, '-i', outroInput, '-map', '0:v:0', '-t', '0.01', '-f', 'null', '-']);
+    } catch {
+      // FFmpeg may return a non-zero code for the metadata-only probe; its log is still useful.
+    } finally {
+      try { ffmpeg.off('log', probeLog); } catch { /* Ignore */ }
+    }
+
+    const width = mainMeta.width % 2 === 0 ? mainMeta.width : mainMeta.width - 1;
+    const height = mainMeta.height % 2 === 0 ? mainMeta.height : mainMeta.height - 1;
+    const videoFilter = transitionDuration > 0
+      ? `[0:v]fps=30,settb=AVTB,setpts=PTS-STARTPTS,setsar=1,format=yuv420p[v0];[1:v]scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2,fps=30,setsar=1,settb=AVTB,setpts=PTS-STARTPTS,format=yuv420p[v1];[v0][v1]xfade=transition=fade:duration=${transitionDuration.toFixed(3)}:offset=${transitionOffset.toFixed(3)},format=yuv420p[v]`
+      : `[0:v]fps=30,settb=AVTB,setpts=PTS-STARTPTS,setsar=1,format=yuv420p[v0];[1:v]scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2,fps=30,setsar=1,settb=AVTB,setpts=PTS-STARTPTS,format=yuv420p[v1];[v0][v1]concat=n=2:v=1:a=0,format=yuv420p[v]`;
+
+    let filterComplex = videoFilter;
+    if (mainHasAudio && outroHasAudio) {
+      const audioFilter = transitionDuration > 0
+        ? `[0:a:0]aresample=48000,asetpts=PTS-STARTPTS,afade=t=out:st=${transitionOffset.toFixed(3)}:d=${transitionDuration.toFixed(3)}[a0];[1:a:0]aresample=48000,asetpts=PTS-STARTPTS,adelay=${Math.round(transitionOffset * 1000)}|${Math.round(transitionOffset * 1000)},afade=t=in:st=${transitionOffset.toFixed(3)}:d=${transitionDuration.toFixed(3)}[a1];[a0][a1]amix=inputs=2:duration=longest:dropout_transition=0:normalize=0[a]`
+        : '[0:a:0][1:a:0]concat=n=2:v=0:a=1[a]';
+      filterComplex += `; ${audioFilter}`;
+    } else if (mainHasAudio) {
+      const padDuration = Math.max(0, outroMeta.duration - transitionDuration);
+      const audioFilter = transitionDuration > 0
+        ? `[0:a:0]aresample=48000,asetpts=PTS-STARTPTS,afade=t=out:st=${transitionOffset.toFixed(3)}:d=${transitionDuration.toFixed(3)},apad=pad_dur=${padDuration.toFixed(3)}[a]`
+        : `[0:a:0]aresample=48000,asetpts=PTS-STARTPTS,apad=pad_dur=${outroMeta.duration.toFixed(3)}[a]`;
+      filterComplex += `; ${audioFilter}`;
+    } else if (outroHasAudio) {
+      const delayMs = Math.round(transitionOffset * 1000);
+      const audioFilter = transitionDuration > 0
+        ? `[1:a:0]aresample=48000,asetpts=PTS-STARTPTS,adelay=${delayMs}|${delayMs},afade=t=in:st=${transitionOffset.toFixed(3)}:d=${transitionDuration.toFixed(3)}[a]`
+        : `[1:a:0]aresample=48000,asetpts=PTS-STARTPTS,adelay=${Math.round(mainMeta.duration * 1000)}|${Math.round(mainMeta.duration * 1000)}[a]`;
+      filterComplex += `; ${audioFilter}`;
+    }
+
+    const args = [
+      '-y',
+      '-i', mainInput,
+      '-i', outroInput,
+      '-filter_complex', filterComplex,
+      '-map', '[v]',
+      ...(mainHasAudio || outroHasAudio ? ['-map', '[a]'] : []),
+      '-c:v', 'libx264',
+      '-preset', 'ultrafast',
+      '-pix_fmt', 'yuv420p',
+      '-crf', '23',
+      '-c:a', 'aac',
+      '-b:a', '160k',
+      '-movflags', '+faststart',
+      outputName
+    ];
+    if (onProgress) onProgress(96, 'Rendering outro crossfade...');
+    let exitCode: number;
+    try {
+      exitCode = await ffmpeg.exec(args);
+    } catch (error) {
+      const details = ffmpegDiagnostics.slice(-18).join(' | ');
+      throw new Error(`FFmpeg outro processing failed: ${error instanceof Error ? error.message : String(error)}. FFmpeg log: ${details || 'No FFmpeg diagnostic output.'}`);
+    }
+    if (exitCode !== 0) {
+      const details = ffmpegDiagnostics.slice(-18).join(' | ');
+      throw new Error(`FFmpeg outro processing exited with code ${exitCode}. FFmpeg log: ${details || 'No FFmpeg diagnostic output.'}`);
+    }
+    const output = await ffmpeg.readFile(outputName);
+    return new Blob([output as any], { type: 'video/mp4' });
+  } finally {
+    try { ffmpeg.off('log', diagnosticHandler); } catch { /* Ignore listener cleanup errors. */ }
+    URL.revokeObjectURL(mainUrl);
+    URL.revokeObjectURL(outroUrl);
+    for (const name of ['outro-main-input.mp4', 'outro-source-input.mp4', 'outro-final-output.mp4']) {
+      try { await ffmpeg.deleteFile(name); } catch { /* Ignore cleanup errors. */ }
+    }
+  }
+}
+
 /**
  * Helper to trigger automatic download of a Blob file in the user's browser.
  */
