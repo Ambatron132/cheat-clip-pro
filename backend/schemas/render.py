@@ -55,6 +55,7 @@ class RenderSettingsModel(BaseModel):
     # Multi-Segment Merged Highlight Video
     render_mode: Optional[str] = "separate"  # "separate" | "merged"
     compilation_title: Optional[str] = None
+    outro_file_path: Optional[str] = None
 
 class RenderBatchRequest(BaseModel):
     video_url: str

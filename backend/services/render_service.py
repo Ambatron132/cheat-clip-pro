@@ -4,12 +4,16 @@ import logging
 import os
 import re
 import subprocess
+import shutil
 import zipfile
 from typing import Any, Dict, List, Optional
 
 from backend.config import (
     EXPORTS_DIR,
     TEMP_DIR,
+    ACTIVE_ENCODER_ARGS,
+    ACTIVE_ENCODER_NAME,
+    get_video_file_metadata,
     download_clip_segment,
     generate_ass_file,
     has_emoji,
@@ -392,6 +396,56 @@ async def render_single_batch_clip(
 
         if not os.path.exists(out_path) or not is_valid_mp4(out_path):
             raise RuntimeError("Rendered MP4 file is incomplete or missing. Please retry rendering.")
+
+        # Append an uploaded outro on the backend, after the clip is rendered.
+        if settings.outro_file_path:
+            from pathlib import Path
+            outro_path = Path(settings.outro_file_path).resolve()
+            uploads_root = (TEMP_DIR / "uploads").resolve()
+            # Only allow files saved by the media upload endpoint.
+            if not outro_path.is_file() or not outro_path.is_relative_to(uploads_root):
+                raise RuntimeError("Uploaded outro file is missing or invalid.")
+            main_meta = await asyncio.to_thread(get_video_file_metadata, out_path)
+            outro_meta = await asyncio.to_thread(get_video_file_metadata, str(outro_path))
+            width = max(2, int(main_meta.get("width") or 1080)); width -= width % 2
+            height = max(2, int(main_meta.get("height") or 1920)); height -= height % 2
+            fps = max(15, min(60, int(round(float(main_meta.get("fps") or 30)))))
+            main_duration = float(main_meta.get("duration") or duration_sec)
+            outro_duration = float(outro_meta.get("duration") or 0)
+            if outro_duration <= 0:
+                raise RuntimeError("Could not read the uploaded outro video.")
+            joined_path = str(TEMP_DIR / f"{batch_id}_clip_{idx}_with_outro.mp4")
+            vf = (
+                f"[0:v]fps={fps},scale={width}:{height}:force_original_aspect_ratio=decrease,"
+                f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2,setsar=1,setpts=PTS-STARTPTS,format=yuv420p[v0];"
+                f"[1:v]scale={width}:{height}:force_original_aspect_ratio=decrease,"
+                f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2,fps={fps},setsar=1,setpts=PTS-STARTPTS,"
+                f"format=yuv420p[v1];[v0][v1]concat=n=2:v=1:a=0[v]"
+            )
+            has_a0 = bool(main_meta.get("has_audio")); has_a1 = bool(outro_meta.get("has_audio"))
+            fc = vf
+            if has_a0 and has_a1:
+                fc += ";[0:a:0]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,asetpts=PTS-STARTPTS[a0];[1:a:0]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,asetpts=PTS-STARTPTS[a1];[a0][a1]concat=n=2:v=0:a=1[a]"
+            elif has_a0:
+                fc += f";[0:a:0]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,asetpts=PTS-STARTPTS,apad=whole_dur={main_duration + outro_duration:.3f}[a]"
+            elif has_a1:
+                delay = round(main_duration * 1000)
+                fc += f";[1:a:0]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,asetpts=PTS-STARTPTS,adelay={delay}|{delay},apad=whole_dur={main_duration + outro_duration:.3f}[a]"
+            ffmpeg = shutil.which("ffmpeg")
+            if not ffmpeg: raise RuntimeError("FFmpeg is not available to append the outro.")
+            cmd = [ffmpeg, "-y", "-hide_banner", "-loglevel", "error", "-i", out_path, "-i", str(outro_path), "-filter_complex", fc, "-map", "[v]"]
+            if has_a0 or has_a1: cmd += ["-map", "[a]"]
+            cmd += ["-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart"]
+            cmd += ACTIVE_ENCODER_ARGS + [joined_path]
+            result = await asyncio.to_thread(subprocess.run, cmd, capture_output=True, text=True, timeout=900, check=False)
+            if result.returncode != 0 and ACTIVE_ENCODER_NAME != "libx264":
+                cmd = [ffmpeg, "-y", "-hide_banner", "-loglevel", "error", "-i", out_path, "-i", str(outro_path), "-filter_complex", fc, "-map", "[v]"]
+                if has_a0 or has_a1: cmd += ["-map", "[a]"]
+                cmd += ["-c:v", "libx264", "-preset", "ultrafast", "-crf", "24", "-threads", "0", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart", joined_path]
+                result = await asyncio.to_thread(subprocess.run, cmd, capture_output=True, text=True, timeout=900, check=False)
+            if result.returncode != 0 or not os.path.exists(joined_path) or os.path.getsize(joined_path) < 1000:
+                raise RuntimeError(f"Failed to append outro: {(result.stderr or '')[-1200:]}")
+            os.replace(joined_path, out_path)
 
         clip_status["status"] = "completed"
         clip_status["progress_percent"] = 100
