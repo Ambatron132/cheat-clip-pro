@@ -133,6 +133,9 @@ export interface RenderSettings {
   bgmFileName?: string;
   bgmVolume?: number; // 0 to 100%
   bgmStartOffset?: number; // seconds from start of audio track
+  // Outro video appended after each rendered clip (client-side post-processing)
+  outroVideoFile?: File;
+  outroFadeDuration?: number; // seconds; 0 disables crossfade
   // Hook SFX
   hookSfxEnabled?: boolean;
   hookSfxFilePath?: string;
