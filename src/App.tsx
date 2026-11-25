@@ -5,6 +5,7 @@ import { resilientFetch } from './utils/api';
 import { getStoredCookies, hasStoredCookies } from './utils/cookieUtils';
 import { extractAudioFromVideoClient } from './utils/audioExtractor';
 import { renderClipClientSide, triggerBrowserDownload } from './services/clientRenderer';
+import { appendOutroVideo } from './services/outroService';
 import { renderClipWebCodecs, isWebCodecsGpuSupported } from './services/webcodecsRenderer';
 import { buildCaptionChunksForClip } from './services/captionUtils';
 import { isMobileDevice, requestWakeLock, releaseWakeLock } from './utils/deviceUtils';
@@ -464,12 +465,12 @@ export default function App() {
 
     setIsLaunchingRender(true);
 
-    const isClientMode = !isMobileDevice() && (
+    const isClientMode = Boolean(settings.outroVideoFile) || (!isMobileDevice() && (
       settings.renderEngine === 'client' ||
       settings.hardwareAccel === 'browser_wasm' ||
       settings.hardwareAccel === 'client_gpu' ||
       (sourceMode === 'upload' && Boolean(uploadedVideoFile))
-    );
+    ));
 
     if (isClientMode) {
       try {
@@ -721,6 +722,28 @@ export default function App() {
                 });
               }
             });
+          }
+
+          // Append the selected outro using native FFmpeg on the local backend.
+          if (settings.outroVideoFile) {
+            blob = await appendOutroVideo(
+              blob,
+              settings.outroVideoFile,
+              (pct, stage) => {
+                setBatchProgress(prev => {
+                  if (!prev) return prev;
+                  return {
+                    ...prev,
+                    clips: prev.clips.map((c, idx) => idx === i ? {
+                      ...c,
+                      status: 'rendering',
+                      progress_percent: pct,
+                      error_message: stage
+                    } : c)
+                  };
+                });
+              }
+            );
           }
 
           // Step 3: Trigger automatic download and update status
