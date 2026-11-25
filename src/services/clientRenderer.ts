@@ -238,6 +238,13 @@ export async function appendOutroVideo(
     video.src = url;
   });
 
+  const ffmpegDiagnostics: string[] = [];
+  const diagnosticHandler = ({ message }: { message: string }) => {
+    ffmpegDiagnostics.push(message);
+    if (ffmpegDiagnostics.length > 40) ffmpegDiagnostics.shift();
+  };
+  ffmpeg.on('log', diagnosticHandler);
+
   try {
     if (onProgress) onProgress(94, 'Preparing outro video and transition...');
     const [mainMeta, outroMeta] = await Promise.all([readVideoMetadata(mainUrl), readVideoMetadata(outroUrl)]);
@@ -272,8 +279,8 @@ export async function appendOutroVideo(
     const width = mainMeta.width % 2 === 0 ? mainMeta.width : mainMeta.width - 1;
     const height = mainMeta.height % 2 === 0 ? mainMeta.height : mainMeta.height - 1;
     const videoFilter = transitionDuration > 0
-      ? `[0:v]settb=AVTB,setpts=PTS-STARTPTS,setsar=1,format=yuv420p[v0];[1:v]scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2,setsar=1,settb=AVTB,setpts=PTS-STARTPTS,format=yuv420p[v1];[v0][v1]xfade=transition=fade:duration=${transitionDuration.toFixed(3)}:offset=${transitionOffset.toFixed(3)},format=yuv420p[v]`
-      : `[0:v]settb=AVTB,setpts=PTS-STARTPTS,setsar=1,format=yuv420p[v0];[1:v]scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2,setsar=1,settb=AVTB,setpts=PTS-STARTPTS,format=yuv420p[v1];[v0][v1]concat=n=2:v=1:a=0,format=yuv420p[v]`;
+      ? `[0:v]fps=30,settb=AVTB,setpts=PTS-STARTPTS,setsar=1,format=yuv420p[v0];[1:v]scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2,fps=30,setsar=1,settb=AVTB,setpts=PTS-STARTPTS,format=yuv420p[v1];[v0][v1]xfade=transition=fade:duration=${transitionDuration.toFixed(3)}:offset=${transitionOffset.toFixed(3)},format=yuv420p[v]`
+      : `[0:v]fps=30,settb=AVTB,setpts=PTS-STARTPTS,setsar=1,format=yuv420p[v0];[1:v]scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2,fps=30,setsar=1,settb=AVTB,setpts=PTS-STARTPTS,format=yuv420p[v1];[v0][v1]concat=n=2:v=1:a=0,format=yuv420p[v]`;
 
     let filterComplex = videoFilter;
     if (mainHasAudio && outroHasAudio) {
@@ -296,6 +303,7 @@ export async function appendOutroVideo(
     }
 
     const args = [
+      '-y',
       '-i', mainInput,
       '-i', outroInput,
       '-filter_complex', filterComplex,
@@ -311,11 +319,21 @@ export async function appendOutroVideo(
       outputName
     ];
     if (onProgress) onProgress(96, 'Rendering outro crossfade...');
-    const exitCode = await ffmpeg.exec(args);
-    if (exitCode !== 0) throw new Error('FFmpeg could not append the outro video. Please check that the outro is a supported MP4, MOV, or WebM file.');
+    let exitCode: number;
+    try {
+      exitCode = await ffmpeg.exec(args);
+    } catch (error) {
+      const details = ffmpegDiagnostics.slice(-18).join(' | ');
+      throw new Error(`FFmpeg outro processing failed: ${error instanceof Error ? error.message : String(error)}. FFmpeg log: ${details || 'No FFmpeg diagnostic output.'}`);
+    }
+    if (exitCode !== 0) {
+      const details = ffmpegDiagnostics.slice(-18).join(' | ');
+      throw new Error(`FFmpeg outro processing exited with code ${exitCode}. FFmpeg log: ${details || 'No FFmpeg diagnostic output.'}`);
+    }
     const output = await ffmpeg.readFile(outputName);
     return new Blob([output as any], { type: 'video/mp4' });
   } finally {
+    try { ffmpeg.off('log', diagnosticHandler); } catch { /* Ignore listener cleanup errors. */ }
     URL.revokeObjectURL(mainUrl);
     URL.revokeObjectURL(outroUrl);
     for (const name of ['outro-main-input.mp4', 'outro-source-input.mp4', 'outro-final-output.mp4']) {
