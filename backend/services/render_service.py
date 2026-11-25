@@ -401,7 +401,7 @@ async def render_single_batch_clip(
         if settings.outro_file_path:
             from pathlib import Path
             outro_path = Path(settings.outro_file_path).resolve()
-            uploads_root = (TEMP_DIR.parent / "uploads").resolve()
+            uploads_root = (TEMP_DIR / "uploads").resolve()
             # Only allow files saved by the media upload endpoint.
             if not outro_path.is_file() or not outro_path.is_relative_to(uploads_root):
                 raise RuntimeError("Uploaded outro file is missing or invalid.")
