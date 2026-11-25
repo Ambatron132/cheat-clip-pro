@@ -12,6 +12,7 @@ import {
   XCircle,
   Music,
   FileCode,
+  Film,
   Play,
   Pause
 } from 'lucide-react';
