@@ -464,7 +464,7 @@ export default function App() {
 
     setIsLaunchingRender(true);
 
-    const isClientMode = (!isMobileDevice() && (
+    const isClientMode = !settings.outroVideoFile && (!isMobileDevice() && (
       settings.renderEngine === 'client' ||
       settings.hardwareAccel === 'browser_wasm' ||
       settings.hardwareAccel === 'client_gpu' ||
