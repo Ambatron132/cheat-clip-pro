@@ -12,6 +12,7 @@ import {
   XCircle,
   Music,
   FileCode,
+  Film,
   Play,
   Pause
 } from 'lucide-react';
@@ -451,6 +452,20 @@ export const ClipStudioSection: React.FC<ClipStudioSectionProps> = ({
   const [isUploadingBgm, setIsUploadingBgm] = useState<boolean>(false);
   const [isBgmDragging, setIsBgmDragging] = useState<boolean>(false);
   const bgmAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Optional outro video appended after every rendered clip
+  const [outroVideoFile, setOutroVideoFile] = useState<File | null>(null);
+  const [isOutroDragging, setIsOutroDragging] = useState<boolean>(false);
+
+  const handleOutroVideoSelect = (file?: File) => {
+    if (!file) return;
+    const supported = /\.(mp4|mov|mkv|webm|avi|m4v)$/i.test(file.name);
+    if (!supported) {
+      alert('Please choose an MP4, MOV, MKV, WebM, AVI, or M4V video.');
+      return;
+    }
+    setOutroVideoFile(file);
+  };
 
   // Hook Sound Effect (SFX) state
   const [hookSfxFileName, setHookSfxFileName] = useState<string>('');
@@ -1923,6 +1938,8 @@ export const ClipStudioSection: React.FC<ClipStudioSectionProps> = ({
       bgmFileName,
       bgmVolume,
       bgmStartOffset,
+      // Outro Video
+      outroVideoFile: outroVideoFile || undefined,
       // Hook SFX
       hookSfxEnabled: !!hookSfxFilePath,
       hookSfxFilePath,
@@ -3718,7 +3735,73 @@ export const ClipStudioSection: React.FC<ClipStudioSectionProps> = ({
             </div>
           </div>
 
-          {/* 7. Original Clip Voice Audio Boost */}
+          {/* 7. Outro Video */}
+          <div className="studio-card-group" style={{ borderColor: 'rgba(168, 85, 247, 0.35)' }}>
+            <div className="group-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span className="group-title">Outro Video</span>
+              <span className="group-badge" style={{ color: outroVideoFile ? '#10b981' : 'var(--text-muted)' }}>
+                {outroVideoFile ? 'Ready' : 'Optional'}
+              </span>
+            </div>
+            <div className="group-content" style={{ marginTop: '0.6rem' }}>
+              {!outroVideoFile ? (
+                <label
+                  className={`bgm-dropzone ${isOutroDragging ? 'drag-over' : ''}`}
+                  onDragOver={e => { e.preventDefault(); e.stopPropagation(); setIsOutroDragging(true); }}
+                  onDragLeave={e => { e.preventDefault(); e.stopPropagation(); setIsOutroDragging(false); }}
+                  onDrop={e => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsOutroDragging(false);
+                    handleOutroVideoSelect(e.dataTransfer.files?.[0]);
+                  }}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <input
+                    type="file"
+                    accept=".mp4,.mov,.mkv,.webm,.avi,.m4v,video/*"
+                    onChange={e => {
+                      handleOutroVideoSelect(e.target.files?.[0]);
+                      e.target.value = '';
+                    }}
+                    style={{ display: 'none' }}
+                  />
+                  <div className="dropzone-icon">
+                    <Film size={20} color="#a855f7" />
+                  </div>
+                  <div className="dropzone-text">
+                    <span className="dropzone-main-text">Upload Outro Video</span>
+                    <span className="dropzone-sub-text">MP4, MOV, MKV, WebM, AVI, M4V · drag & drop or browse</span>
+                  </div>
+                </label>
+              ) : (
+                <div className="bgm-active-file-row">
+                  <div className="bgm-info">
+                    <span className="bgm-icon"><Film size={16} color="#a855f7" /></span>
+                    <div className="bgm-details">
+                      <span className="bgm-filename" title={outroVideoFile.name}>{outroVideoFile.name}</span>
+                      <span className="bgm-status-tag">Will be appended after each rendered clip</span>
+                    </div>
+                  </div>
+                  <div className="bgm-actions">
+                    <button
+                      type="button"
+                      className="bgm-remove-btn"
+                      onClick={() => setOutroVideoFile(null)}
+                      title="Remove outro video"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              )}
+              <p className="bgm-hint-text" style={{ marginTop: '0.5rem' }}>
+                Optional. The same outro video will be added to the end of every selected clip.
+              </p>
+            </div>
+          </div>
+
+          {/* 8. Original Clip Voice Audio Boost */}
           <div className="studio-card-group group-audio-boost">
             <div className="group-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
