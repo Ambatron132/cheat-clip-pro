@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 import re
+import shutil
 import subprocess
 import urllib.parse
 import uuid
@@ -10,9 +11,12 @@ from typing import Optional
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, Response, UploadFile, status
 from fastapi.responses import FileResponse, StreamingResponse
+from starlette.background import BackgroundTask
 
 from backend.utils.text import canonical_video_url
 from backend.config import (
+    ACTIVE_ENCODER_ARGS,
+    ACTIVE_ENCODER_NAME,
     EXPORTS_DIR,
     TEMP_DIR,
     UPLOADS_DIR,
@@ -76,6 +80,186 @@ async def _save_uploaded_file_chunked(file: UploadFile, save_path: Path, max_byt
             except Exception:
                 pass
         raise HTTPException(status_code=500, detail=f"Failed to save upload: {str(e)}")
+
+
+@router.post("/api/append-outro")
+async def append_outro_video(
+    main_clip: UploadFile = File(...),
+    outro_video: UploadFile = File(...),
+    fade_duration: float = Form(0.75),
+):
+    """
+    Appends an outro to a client-rendered MP4 using the machine's native FFmpeg
+    encoder (NVENC/AMF/QSV when available), avoiding a second software-WASM encode.
+    """
+    allowed_outro_extensions = {".mp4", ".mov", ".mkv", ".webm", ".avi", ".m4v"}
+    main_ext = Path(main_clip.filename or "rendered.mp4").suffix.lower()
+    outro_ext = Path(outro_video.filename or "outro.mp4").suffix.lower()
+    if main_ext != ".mp4":
+        raise HTTPException(status_code=400, detail="The rendered main clip must be an MP4 file.")
+    if outro_ext not in allowed_outro_extensions:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported outro format. Allowed: {', '.join(sorted(allowed_outro_extensions))}"
+        )
+
+    job_id = uuid.uuid4().hex
+    main_path = TEMP_DIR / f"outro-main-{job_id}.mp4"
+    outro_path = TEMP_DIR / f"outro-source-{job_id}{outro_ext}"
+    output_path = TEMP_DIR / f"outro-combined-{job_id}.mp4"
+    cleanup_paths = [main_path, outro_path, output_path]
+
+    def cleanup_files():
+        for path in cleanup_paths:
+            try:
+                path.unlink(missing_ok=True)
+            except Exception as cleanup_error:
+                logger.warning(f"Could not clean outro temporary file {path.name}: {cleanup_error}")
+
+    try:
+        await _save_uploaded_file_chunked(main_clip, main_path, MAX_VIDEO_UPLOAD_BYTES)
+        await _save_uploaded_file_chunked(outro_video, outro_path, MAX_VIDEO_UPLOAD_BYTES)
+
+        main_meta, outro_meta = await asyncio.gather(
+            asyncio.to_thread(get_video_file_metadata, main_path),
+            asyncio.to_thread(get_video_file_metadata, outro_path),
+        )
+        main_duration = float(main_meta.get("duration") or 0)
+        outro_duration = float(outro_meta.get("duration") or 0)
+        width = int(main_meta.get("width") or 0)
+        height = int(main_meta.get("height") or 0)
+        if main_duration <= 0 or outro_duration <= 0 or width < 2 or height < 2:
+            raise HTTPException(status_code=422, detail="Could not read valid duration or dimensions from both videos.")
+
+        width -= width % 2
+        height -= height % 2
+        fps = int(round(float(main_meta.get("fps") or 30)))
+        fps = max(15, min(60, fps))
+        transition = max(0.0, min(float(fade_duration), 2.0, main_duration, outro_duration))
+        offset = max(0.0, main_duration - transition)
+
+        video_filter = (
+            f"[0:v]fps={fps},scale={width}:{height}:force_original_aspect_ratio=decrease,"
+            f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2,setsar=1,settb=AVTB,"
+            f"setpts=PTS-STARTPTS,format=yuv420p[v0];"
+            f"[1:v]scale={width}:{height}:force_original_aspect_ratio=decrease,"
+            f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2,fps={fps},setsar=1,settb=AVTB,"
+            f"setpts=PTS-STARTPTS,format=yuv420p[v1];"
+        )
+        if transition > 0:
+            video_filter += (
+                f"[v0][v1]xfade=transition=fade:duration={transition:.3f}:"
+                f"offset={offset:.3f},format=yuv420p[v]"
+            )
+        else:
+            video_filter += "[v0][v1]concat=n=2:v=1:a=0,format=yuv420p[v]"
+
+        main_has_audio = bool(main_meta.get("has_audio"))
+        outro_has_audio = bool(outro_meta.get("has_audio"))
+        filter_complex = video_filter
+        if main_has_audio and outro_has_audio:
+            if transition > 0:
+                audio_filter = (
+                    f"[0:a:0]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,"
+                    f"asetpts=PTS-STARTPTS,afade=t=out:st={offset:.3f}:d={transition:.3f}[a0];"
+                    f"[1:a:0]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,"
+                    f"asetpts=PTS-STARTPTS,adelay={round(offset * 1000)}|{round(offset * 1000)},"
+                    f"afade=t=in:st={offset:.3f}:d={transition:.3f}[a1];"
+                    f"[a0][a1]amix=inputs=2:duration=longest:dropout_transition=0:normalize=0[a]"
+                )
+            else:
+                audio_filter = (
+                    "[0:a:0]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo[a0];"
+                    "[1:a:0]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo[a1];"
+                    "[a0][a1]concat=n=2:v=0:a=1[a]"
+                )
+            filter_complex += ";" + audio_filter
+        elif main_has_audio:
+            pad_duration = max(0.0, outro_duration - transition)
+            audio_filter = (
+                f"[0:a:0]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,"
+                f"asetpts=PTS-STARTPTS"
+            )
+            if transition > 0:
+                audio_filter += f",afade=t=out:st={offset:.3f}:d={transition:.3f}"
+            audio_filter += f",apad=pad_dur={pad_duration:.3f}[a]"
+            filter_complex += ";" + audio_filter
+        elif outro_has_audio:
+            delay = round(offset * 1000)
+            audio_filter = (
+                f"[1:a:0]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,"
+                f"asetpts=PTS-STARTPTS,adelay={delay}|{delay}"
+            )
+            if transition > 0:
+                audio_filter += f",afade=t=in:st={offset:.3f}:d={transition:.3f}"
+            filter_complex += ";" + audio_filter + "[a]"
+
+        ffmpeg_path = shutil.which("ffmpeg")
+        if not ffmpeg_path:
+            raise HTTPException(status_code=503, detail="Native FFmpeg is not available on the backend.")
+
+        common_args = [
+            ffmpeg_path, "-y", "-hide_banner", "-loglevel", "error",
+            "-i", str(main_path), "-i", str(outro_path),
+            "-filter_complex", filter_complex,
+            "-map", "[v]",
+        ]
+        if main_has_audio or outro_has_audio:
+            common_args.extend(["-map", "[a]"])
+        common_args.extend(["-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart", str(output_path)])
+
+        preferred_args = common_args[:-1] + list(ACTIVE_ENCODER_ARGS) + common_args[-1:]
+        logger.info(
+            f"Appending outro with native FFmpeg ({ACTIVE_ENCODER_NAME}), "
+            f"transition={transition:.2f}s, output={width}x{height}@{fps}fps."
+        )
+        result = await asyncio.to_thread(
+            subprocess.run,
+            preferred_args,
+            capture_output=True,
+            text=True,
+            timeout=900,
+            check=False,
+        )
+
+        if result.returncode != 0 and ACTIVE_ENCODER_NAME != "libx264":
+            logger.warning(
+                f"Native hardware encoder {ACTIVE_ENCODER_NAME} failed during outro composition; "
+                "retrying with libx264. FFmpeg: {(result.stderr or '')[-1800:]}"
+            )
+            output_path.unlink(missing_ok=True)
+            cpu_args = common_args[:-1] + [
+                "-c:v", "libx264", "-preset", "ultrafast", "-crf", "24", "-threads", "0",
+            ] + common_args[-1:]
+            result = await asyncio.to_thread(
+                subprocess.run,
+                cpu_args,
+                capture_output=True,
+                text=True,
+                timeout=900,
+                check=False,
+            )
+
+        if result.returncode != 0 or not output_path.exists() or output_path.stat().st_size < 1000:
+            detail = (result.stderr or "FFmpeg did not create a valid output file.")[-2500:]
+            raise HTTPException(status_code=500, detail=f"Native FFmpeg outro composition failed: {detail}")
+
+        return FileResponse(
+            output_path,
+            media_type="video/mp4",
+            filename="rendered-with-outro.mp4",
+            background=BackgroundTask(cleanup_files),
+        )
+    except HTTPException:
+        cleanup_files()
+        raise
+    except subprocess.TimeoutExpired:
+        cleanup_files()
+        raise HTTPException(status_code=504, detail="Native FFmpeg outro composition timed out.")
+    except Exception as error:
+        cleanup_files()
+        logger.exception(f"Unexpected error while appending outro video: {error}")
+        raise HTTPException(status_code=500, detail="Unexpected error while appending outro video.")
 
 
 @router.post("/api/upload-video")
