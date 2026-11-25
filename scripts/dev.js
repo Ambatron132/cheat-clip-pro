@@ -1,4 +1,5 @@
 import { spawn } from 'child_process';
+import http from 'http';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -105,20 +106,77 @@ function runService(name, command, args, color) {
   return proc;
 }
 
-console.log(`${COLORS.bold}${COLORS.cyan}===================================================${COLORS.reset}`);
-console.log(`${COLORS.bold}  Starting Cheat Clip PRO Development Environment   ${COLORS.reset}`);
-console.log(`${COLORS.bold}${COLORS.cyan}===================================================${COLORS.reset}\n`);
-
-// 1. Start Python FastAPI Backend Server
-const backendScript = path.join(rootDir, 'scripts', 'start-backend.js');
-runService('backend', process.execPath, [backendScript], COLORS.magenta);
-
-// 2. Start Vite Frontend Dev Server
-const viteBin = path.join(rootDir, 'node_modules', 'vite', 'bin', 'vite.js');
-if (fs.existsSync(viteBin)) {
-  runService('frontend', process.execPath, [viteBin], COLORS.cyan);
-} else {
-  const npmCmd = isWindows ? 'cmd.exe' : 'npm';
-  const npmArgs = isWindows ? ['/d', '/s', '/c', 'npm run dev-frontend'] : ['run', 'dev-frontend'];
-  runService('frontend', npmCmd, npmArgs, COLORS.cyan);
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
+
+// Check the actual FastAPI process, not just whether the port accepts TCP connections.
+function isBackendReady() {
+  return new Promise(resolve => {
+    const request = http.get('http://127.0.0.1:8000/openapi.json', response => {
+      response.resume();
+      resolve(response.statusCode === 200);
+    });
+
+    request.setTimeout(1500, () => request.destroy());
+    request.on('error', () => resolve(false));
+  });
+}
+
+async function waitForBackend(backendProcess, timeoutMs = 180000) {
+  const startedAt = Date.now();
+
+  while (!isShuttingDown && Date.now() - startedAt < timeoutMs) {
+    if (backendProcess.exitCode !== null || backendProcess.signalCode !== null) {
+      throw new Error('The backend launcher exited before FastAPI became ready. Check the backend logs above.');
+    }
+
+    if (await isBackendReady()) {
+      return;
+    }
+
+    await delay(400);
+  }
+
+  if (isShuttingDown) return;
+  throw new Error('FastAPI did not become ready on http://127.0.0.1:8000 within 3 minutes.');
+}
+
+function startFrontend() {
+  // Start Vite only after FastAPI is accepting requests. This prevents the initial
+  // React startup requests from racing the backend and receiving proxy-generated 503s.
+  const viteBin = path.join(rootDir, 'node_modules', 'vite', 'bin', 'vite.js');
+  if (fs.existsSync(viteBin)) {
+    runService('frontend', process.execPath, [viteBin], COLORS.cyan);
+  } else {
+    const npmCmd = isWindows ? 'cmd.exe' : 'npm';
+    const npmArgs = isWindows ? ['/d', '/s', '/c', 'npm run dev-frontend'] : ['run', 'dev-frontend'];
+    runService('frontend', npmCmd, npmArgs, COLORS.cyan);
+  }
+}
+
+async function main() {
+  console.log(`${COLORS.bold}${COLORS.cyan}===================================================${COLORS.reset}`);
+  console.log(`${COLORS.bold}  Starting Cheat Clip PRO Development Environment   ${COLORS.reset}`);
+  console.log(`${COLORS.bold}${COLORS.cyan}===================================================${COLORS.reset}\n`);
+
+  // 1. Start the Python backend first.
+  const backendScript = path.join(rootDir, 'scripts', 'start-backend.js');
+  const backendProcess = runService('backend', process.execPath, [backendScript], COLORS.magenta);
+
+  // 2. Wait until FastAPI is actually ready before starting Vite.
+  console.log(`${COLORS.gray}Waiting for FastAPI on http://127.0.0.1:8000 ...${COLORS.reset}`);
+  try {
+    await waitForBackend(backendProcess);
+  } catch (error) {
+    console.error(`${COLORS.red}Backend startup failed: ${error instanceof Error ? error.message : String(error)}${COLORS.reset}`);
+    shutdown(1);
+    return;
+  }
+
+  if (isShuttingDown) return;
+  console.log(`${COLORS.green || '\\x1b[32m'}✓ FastAPI is ready. Starting Vite... ${COLORS.reset}`);
+  startFrontend();
+}
+
+main();
