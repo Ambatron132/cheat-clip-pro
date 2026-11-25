@@ -133,6 +133,8 @@ export interface RenderSettings {
   bgmFileName?: string;
   bgmVolume?: number; // 0 to 100%
   bgmStartOffset?: number; // seconds from start of audio track
+  // Optional video appended after every rendered clip
+  outroVideoFile?: File;
   // Hook SFX
   hookSfxEnabled?: boolean;
   hookSfxFilePath?: string;
