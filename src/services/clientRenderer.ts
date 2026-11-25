@@ -257,8 +257,8 @@ export async function appendOutroVideo(
     let mainHasAudio = false;
     let outroHasAudio = false;
     const probeLog = ({ message }: { message: string }) => {
-      if (/Stream #0:\\d+.*Audio:/i.test(message)) mainHasAudio = true;
-      if (/Stream #1:\\d+.*Audio:/i.test(message)) outroHasAudio = true;
+      if (/Stream #0:\d+.*Audio:/i.test(message)) mainHasAudio = true;
+      if (/Stream #1:\d+.*Audio:/i.test(message)) outroHasAudio = true;
     };
     ffmpeg.on('log', probeLog);
     try {
@@ -273,7 +273,7 @@ export async function appendOutroVideo(
     const height = mainMeta.height % 2 === 0 ? mainMeta.height : mainMeta.height - 1;
     const videoFilter = transitionDuration > 0
       ? `[0:v]settb=AVTB,setpts=PTS-STARTPTS,setsar=1,format=yuv420p[v0];[1:v]scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2,setsar=1,settb=AVTB,setpts=PTS-STARTPTS,format=yuv420p[v1];[v0][v1]xfade=transition=fade:duration=${transitionDuration.toFixed(3)}:offset=${transitionOffset.toFixed(3)},format=yuv420p[v]`
-      : `[0:v]setpts=PTS-STARTPTS,setsar=1,format=yuv420p[v0];[1:v]scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2,setsar=1,setpts=PTS-STARTPTS,format=yuv420p[v1];[v0][v1]concat=n=2:v=1:a=0,format=yuv420p[v]`;
+      : `[0:v]settb=AVTB,setpts=PTS-STARTPTS,setsar=1,format=yuv420p[v0];[1:v]scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2,setsar=1,settb=AVTB,setpts=PTS-STARTPTS,format=yuv420p[v1];[v0][v1]concat=n=2:v=1:a=0,format=yuv420p[v]`;
 
     let filterComplex = videoFilter;
     if (mainHasAudio && outroHasAudio) {
