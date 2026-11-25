@@ -5,7 +5,6 @@ import { resilientFetch } from './utils/api';
 import { getStoredCookies, hasStoredCookies } from './utils/cookieUtils';
 import { extractAudioFromVideoClient } from './utils/audioExtractor';
 import { renderClipClientSide, triggerBrowserDownload } from './services/clientRenderer';
-import { appendOutroVideo } from './services/outroService';
 import { renderClipWebCodecs, isWebCodecsGpuSupported } from './services/webcodecsRenderer';
 import { buildCaptionChunksForClip } from './services/captionUtils';
 import { isMobileDevice, requestWakeLock, releaseWakeLock } from './utils/deviceUtils';
@@ -465,7 +464,7 @@ export default function App() {
 
     setIsLaunchingRender(true);
 
-    const isClientMode = Boolean(settings.outroVideoFile) || (!isMobileDevice() && (
+    const isClientMode = (!isMobileDevice() && (
       settings.renderEngine === 'client' ||
       settings.hardwareAccel === 'browser_wasm' ||
       settings.hardwareAccel === 'client_gpu' ||
@@ -724,29 +723,7 @@ export default function App() {
             });
           }
 
-          // Append the selected outro using native FFmpeg on the local backend.
-          if (settings.outroVideoFile) {
-            blob = await appendOutroVideo(
-              blob,
-              settings.outroVideoFile,
-              (pct, stage) => {
-                setBatchProgress(prev => {
-                  if (!prev) return prev;
-                  return {
-                    ...prev,
-                    clips: prev.clips.map((c, idx) => idx === i ? {
-                      ...c,
-                      status: 'rendering',
-                      progress_percent: pct,
-                      error_message: stage
-                    } : c)
-                  };
-                });
-              }
-            );
-          }
-
-          // Step 3: Trigger automatic download and update status
+              // Step 3: Trigger automatic download and update status
           const downloadBlobUrl = URL.createObjectURL(blob);
           triggerBrowserDownload(blob, `${filename}.mp4`);
 
@@ -787,6 +764,18 @@ export default function App() {
     }
 
     try {
+      let outroFilePath: string | null = null;
+      if (settings.outroVideoFile) {
+        const outroForm = new FormData();
+        outroForm.append('file', settings.outroVideoFile, settings.outroVideoFile.name);
+        const outroUpload = await fetch('/api/upload-video', { method: 'POST', body: outroForm });
+        if (!outroUpload.ok) {
+          const uploadError = await outroUpload.json().catch(() => ({}));
+          throw new Error(uploadError.detail || 'Failed to upload outro video');
+        }
+        const uploadedOutro = await outroUpload.json();
+        outroFilePath = uploadedOutro.file_path;
+      }
       const userCookies = getStoredCookies();
       const resp = await fetch('/api/render-batch', {
         method: 'POST',
@@ -855,6 +844,7 @@ export default function App() {
             // Multi-Segment Merged Highlight Video
             render_mode: settings.renderMode || 'separate',
             compilation_title: settings.compilationTitle || null,
+            outro_file_path: outroFilePath,
           },
           transcript: result.transcript,
         }),
