@@ -211,6 +211,88 @@ export async function renderClipClientSide(options: ClientRenderOptions): Promis
   return blob;
 }
 
+
+/**
+ * Appends an optional outro video to a rendered clip using a video crossfade.
+ * The main clip's audio is retained and faded down at the transition. If the
+ * outro contains audio, it is preserved as a second audio stream.
+ */
+export async function appendOutroVideo(
+  mainBlob: Blob,
+  outroFile: File,
+  fadeDuration = 0.75,
+  onProgress?: (percent: number, stage: string) => void
+): Promise<Blob> {
+  const ffmpeg = await getFFmpeg();
+  const mainUrl = URL.createObjectURL(mainBlob);
+  const outroUrl = URL.createObjectURL(outroFile);
+  const readVideoMetadata = (url: string) => new Promise<{ duration: number; width: number; height: number }>((resolve, reject) => {
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    video.onloadedmetadata = () => {
+      const metadata = { duration: video.duration, width: video.videoWidth, height: video.videoHeight };
+      video.src = '';
+      resolve(metadata);
+    };
+    video.onerror = () => reject(new Error('Unable to read the main or outro video metadata.'));
+    video.src = url;
+  });
+
+  try {
+    if (onProgress) onProgress(94, 'Preparing outro video and transition...');
+    const [mainMeta, outroMeta] = await Promise.all([readVideoMetadata(mainUrl), readVideoMetadata(outroUrl)]);
+    if (!Number.isFinite(mainMeta.duration) || !Number.isFinite(outroMeta.duration) || !mainMeta.width || !mainMeta.height) {
+      throw new Error('The uploaded outro video has invalid duration or dimensions.');
+    }
+
+    const transitionDuration = Math.max(0, Math.min(fadeDuration, mainMeta.duration, outroMeta.duration));
+    const transitionOffset = Math.max(0, mainMeta.duration - transitionDuration);
+    const mainInput = 'outro-main-input.mp4';
+    const outroInput = 'outro-source-input.mp4';
+    const outputName = 'outro-final-output.mp4';
+    await ffmpeg.writeFile(mainInput, await fetchFile(mainBlob));
+    await ffmpeg.writeFile(outroInput, await fetchFile(outroFile));
+
+    const width = mainMeta.width % 2 === 0 ? mainMeta.width : mainMeta.width - 1;
+    const height = mainMeta.height % 2 === 0 ? mainMeta.height : mainMeta.height - 1;
+    const videoFilter = transitionDuration > 0
+      ? `[0:v]setpts=PTS-STARTPTS,setsar=1,format=yuv420p[v0];[1:v]scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2,setsar=1,setpts=PTS-STARTPTS,format=yuv420p[v1];[v0][v1]xfade=transition=fade:duration=${transitionDuration.toFixed(3)}:offset=${transitionOffset.toFixed(3)},format=yuv420p[v]`
+      : `[0:v]setpts=PTS-STARTPTS,setsar=1,format=yuv420p[v0];[1:v]scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2,setsar=1,setpts=PTS-STARTPTS,format=yuv420p[v1];[v0][v1]concat=n=2:v=1:a=0,format=yuv420p[v]`;
+
+    const args = [
+      '-i', mainInput,
+      '-i', outroInput,
+      '-filter_complex', videoFilter,
+      '-map', '[v]',
+      '-map', '0:a?',
+      '-map', '1:a?',
+      '-c:v', 'libx264',
+      '-preset', 'ultrafast',
+      '-pix_fmt', 'yuv420p',
+      '-crf', '23',
+      '-c:a', 'aac',
+      '-b:a', '160k',
+      '-movflags', '+faststart',
+      outputName
+    ];
+    if (transitionDuration > 0) {
+      args.splice(4, 0, '-af', `afade=t=out:st=${Math.max(0, transitionOffset).toFixed(3)}:d=${transitionDuration.toFixed(3)}`);
+    }
+
+    if (onProgress) onProgress(96, 'Rendering outro crossfade...');
+    const exitCode = await ffmpeg.exec(args);
+    if (exitCode !== 0) throw new Error('FFmpeg could not append the outro video. Please check that the outro is a supported MP4, MOV, or WebM file.');
+    const output = await ffmpeg.readFile(outputName);
+    return new Blob([output as any], { type: 'video/mp4' });
+  } finally {
+    URL.revokeObjectURL(mainUrl);
+    URL.revokeObjectURL(outroUrl);
+    for (const name of ['outro-main-input.mp4', 'outro-source-input.mp4', 'outro-final-output.mp4']) {
+      try { await ffmpeg.deleteFile(name); } catch { /* Ignore cleanup errors. */ }
+    }
+  }
+}
+
 /**
  * Helper to trigger automatic download of a Blob file in the user's browser.
  */
