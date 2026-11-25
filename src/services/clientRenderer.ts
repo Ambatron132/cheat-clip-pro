@@ -217,7 +217,61 @@ export async function renderClipClientSide(options: ClientRenderOptions): Promis
  * The main clip's audio is retained and faded down at the transition. If the
  * outro contains audio, it is preserved as a second audio stream.
  */
+/**
+ * Preferred outro path: use the local FastAPI backend's native FFmpeg encoder.
+ * This uses NVENC/AMF/QSV where available and avoids the extra software-WASM
+ * encode. Fall back to the browser WASM path only if the endpoint is unavailable.
+ */
 export async function appendOutroVideo(
+  mainBlob: Blob,
+  outroFile: File,
+  fadeDuration = 0.75,
+  onProgress?: (percent: number, stage: string) => void
+): Promise<Blob> {
+  const formData = new FormData();
+  formData.append('main_clip', mainBlob, 'rendered-clip.mp4');
+  formData.append('outro_video', outroFile, outroFile.name || 'outro.mp4');
+  formData.append('fade_duration', String(Math.max(0, Math.min(2, fadeDuration))));
+
+  if (onProgress) onProgress(94, 'Sending videos to the local hardware encoder...');
+  let response: Response;
+  try {
+    response = await fetch('/api/append-outro', {
+      method: 'POST',
+      body: formData
+    });
+  } catch (error) {
+    console.warn('[Outro] Native FFmpeg endpoint unavailable; falling back to browser WASM.', error);
+    if (onProgress) onProgress(95, 'Local encoder unavailable. Falling back to browser rendering...');
+    return appendOutroVideoWasm(mainBlob, outroFile, fadeDuration, onProgress);
+  }
+
+  if (response.status === 404 || response.status === 503) {
+    console.warn(`[Outro] Native FFmpeg endpoint returned ${response.status}; falling back to browser WASM.`);
+    if (onProgress) onProgress(95, 'Native encoder unavailable. Falling back to browser rendering...');
+    return appendOutroVideoWasm(mainBlob, outroFile, fadeDuration, onProgress);
+  }
+
+  if (!response.ok) {
+    let detail = '';
+    try {
+      const payload = await response.json();
+      detail = payload?.detail || payload?.error || '';
+    } catch {
+      detail = await response.text().catch(() => '');
+    }
+    throw new Error(detail || `Native FFmpeg outro composition failed (HTTP ${response.status}).`);
+  }
+
+  const output = await response.blob();
+  if (!output.size || (output.type && !output.type.includes('video'))) {
+    throw new Error('The native FFmpeg encoder returned an empty or invalid video file.');
+  }
+  if (onProgress) onProgress(99, 'Finalizing outro video...');
+  return new Blob([output], { type: 'video/mp4' });
+}
+
+async function appendOutroVideoWasm(
   mainBlob: Blob,
   outroFile: File,
   fadeDuration = 0.75,
